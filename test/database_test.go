@@ -6,7 +6,7 @@ import (
 )
 
 func TestDatabase(t *testing.T) {
-
+	
 	gen := generatorcloud.Database{}
 	gen.Create()
 }
