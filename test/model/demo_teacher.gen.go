@@ -73,6 +73,13 @@ func (v Teacher) ToDTO() *TeacherDTO {
 	return &dto
 }
 
+func (v Teacher) ParseDTO(dto *TeacherDTO) {
+	err := copier.Copy(&dto, v)
+	if err != nil {
+		logger.Logrus().Errorln("copier.Copy error:", err)
+	}
+}
+
 type TeacherSlice []*Teacher
 
 func (v TeacherSlice) ToDTOs() []*TeacherDTO {
