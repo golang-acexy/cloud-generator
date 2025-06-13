@@ -63,8 +63,8 @@ func (v {{.ModelStructName}}Slice) ToDTOs() []*{{.ModelStructName}}DTO {
     return dtos
 }
 
-func (v {{.ModelStructName}}Slice) ParseDTOs(dtos []*{{.ModelStructName}}DTO) {
-    err := copier.Copy(&dtos, v)
+func (v {{.ModelStructName}}Slice) ParseDTOs(dtos *[]*{{.ModelStructName}}DTO) {
+    err := copier.Copy(dtos, v)
     if err != nil {
         logger.Logrus().Errorln("copier.Copy error:", err)
     }
