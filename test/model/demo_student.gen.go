@@ -63,6 +63,16 @@ type StudentDTO struct {
 	TeacherID  int64          `json:"teacherId"`
 }
 
+func (v Student) ToDTO() *StudentDTO {
+	var dto StudentDTO
+	err := copier.Copy(&dto, v)
+	if err != nil {
+		logger.Logrus().Errorln("copier.Copy error:", err)
+		return nil
+	}
+	return &dto
+}
+
 type StudentSlice []*Student
 
 func (v StudentSlice) ToDTOs() []*StudentDTO {

@@ -28,6 +28,6 @@ func TestConvert(t *testing.T) {
 		},
 	}
 
-	ds := TeacherSlice(teachers).ToDTOS()
+	ds := TeacherSlice(teachers).ToDTOs()
 	fmt.Println(json.ToJson(ds))
 }
