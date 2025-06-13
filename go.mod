@@ -3,7 +3,7 @@ module github.com/golang-acexy/cloud-generator
 go 1.23.5
 
 require (
-	github.com/acexy/gen v0.0.0-20250611065837-d5bfb25e2ff7
+	github.com/acexy/gen v0.0.0-20250613032311-893d51eb2353
 	github.com/acexy/golang-toolkit v0.0.48
 	github.com/golang-acexy/cloud-database v0.0.0-20250610070434-3c8c3f2883d6
 	github.com/golang-acexy/starter-gorm v0.1.19-0.20250606092219-c3e4c8ed4384
@@ -23,6 +23,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.7.5 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect

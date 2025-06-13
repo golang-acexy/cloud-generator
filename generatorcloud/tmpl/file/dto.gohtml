@@ -1,0 +1,87 @@
+// {{.ModelStructName}}SDTO 保存时结构体 限定只允许操作的字段
+type {{.ModelStructName}}SDTO struct {
+{{- range .Fields }}
+    {{- if not (call $.IsSExcluded .Name) }}
+    {{.Name}} {{.Type}} `{{.Tags}}`
+    {{- end }}
+{{- end }}
+}
+
+// {{.ModelStructName}}MDTO 修改时结构体 限定只允许操作的字段
+type {{.ModelStructName}}MDTO struct {
+{{- range .Fields }}
+    {{- if not (call $.IsMExcluded .Name) }}
+    {{.Name}} {{.Type}} `{{.Tags}}`
+    {{- end }}
+{{- end }}
+}
+
+// {{.ModelStructName}}QDTO 查询时结构体 限定只允许使用的字段
+type {{.ModelStructName}}QDTO struct {
+{{- range .Fields }}
+    {{- if not (call $.IsQExcluded .Name) }}
+    {{.Name}} {{.Type}} `{{.Tags}}`
+    {{- end }}
+{{- end }}
+}
+
+// {{.ModelStructName}}DTO 结果结构体 限定只允许展示的字段
+type {{.ModelStructName}}DTO struct {
+{{- range .Fields }}
+    {{- if not (call $.IsDExcluded .Name) }}
+    {{.Name}} {{.Type}} `{{.Tags}}`
+    {{- end }}
+{{- end }}
+}
+
+type {{.ModelStructName}}Slice []*{{.ModelStructName}}
+
+func (v {{.ModelStructName}}Slice) ToDTOs() []*{{.ModelStructName}}DTO {
+    var dtos []*{{.ModelStructName}}DTO
+    err := copier.Copy(&dtos, v)
+    if err != nil {
+        logger.Logrus().Errorln("copier.Copy error:", err)
+        return nil
+    }
+    return dtos
+}
+
+func (v {{.ModelStructName}}SDTO) ToT() *{{.ModelStructName}} {
+    var t {{.ModelStructName}}
+    err := copier.Copy(&t, v)
+    if err != nil {
+        logger.Logrus().Errorln("copier.Copy error:", err)
+        return nil
+    }
+    return &t
+}
+
+func (v {{.ModelStructName}}MDTO) ToT() *{{.ModelStructName}} {
+    var t {{.ModelStructName}}
+    err := copier.Copy(&t, v)
+    if err != nil {
+        logger.Logrus().Errorln("copier.Copy error:", err)
+        return nil
+    }
+    return &t
+}
+
+func (v {{.ModelStructName}}QDTO) ToT() *{{.ModelStructName}} {
+    var t {{.ModelStructName}}
+    err := copier.Copy(&t, v)
+    if err != nil {
+        logger.Logrus().Errorln("copier.Copy error:", err)
+        return nil
+    }
+    return &t
+}
+
+func (v {{.ModelStructName}}DTO) ToT() *{{.ModelStructName}} {
+    var t {{.ModelStructName}}
+    err := copier.Copy(&t, v)
+    if err != nil {
+        logger.Logrus().Errorln("copier.Copy error:", err)
+        return nil
+    }
+    return &t
+}

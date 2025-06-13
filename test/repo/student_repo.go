@@ -2,8 +2,8 @@ package repo
 
 import (
 	"github.com/golang-acexy/cloud-database/databasecloud"
-	"github.com/golang-acexy/starter-gorm/gormstarter"
 	"github.com/golang-acexy/cloud-generator/test/model"
+	"github.com/golang-acexy/starter-gorm/gormstarter"
 )
 
 var studentRepo = StudentRepo{
@@ -34,7 +34,7 @@ type StudentRepo struct {
 // 在此处拓展自定义Mapper的业务功能
 
 //func (m StudentMapper) MyMapperMethod() {
-//	
+//
 //}
 
 // ---------------------------------------
@@ -42,5 +42,5 @@ type StudentRepo struct {
 // 在此处拓展自定义Repo的业务功能
 
 //func (r StudentRepo) MyRepoMethod()  {
-//	
+//
 //}
