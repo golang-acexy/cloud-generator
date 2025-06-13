@@ -8,7 +8,7 @@ import (
 {{- end }}
 )
 
-var {{.ParamName}}Repo = {{.StructName}}Repo{
+var {{.ParamName}}Repo = &{{.StructName}}Repo{
 	GormRepository: databasecloud.GormRepository[
 		gormstarter.IBaseMapper[gormstarter.BaseMapper[model.{{.StructName}}], model.{{.StructName}}],
 		gormstarter.BaseMapper[model.{{.StructName}}],
@@ -21,7 +21,7 @@ var {{.ParamName}}Repo = {{.StructName}}Repo{
 func (r {{.StructName}}Repo) RawMapper() {{.StructName}}Mapper {
 	return r.RawIMapper().({{.StructName}}Mapper)
 }
-func New{{.StructName}}Repo() {{.StructName}}Repo {
+func New{{.StructName}}Repo() *{{.StructName}}Repo {
 	return {{.ParamName}}Repo
 }
 

@@ -85,6 +85,13 @@ func (v StudentSlice) ToDTOs() []*StudentDTO {
 	return dtos
 }
 
+func (v StudentSlice) ParseDTOs(dtos []*StudentDTO) {
+	err := copier.Copy(&dtos, v)
+	if err != nil {
+		logger.Logrus().Errorln("copier.Copy error:", err)
+	}
+}
+
 func (v StudentSDTO) ToT() *Student {
 	var t Student
 	err := copier.Copy(&t, v)
@@ -93,6 +100,13 @@ func (v StudentSDTO) ToT() *Student {
 		return nil
 	}
 	return &t
+}
+
+func (v StudentSDTO) ParseT(t *Student) {
+	err := copier.Copy(t, v)
+	if err != nil {
+		logger.Logrus().Errorln("copier.Copy error:", err)
+	}
 }
 
 func (v StudentMDTO) ToT() *Student {
@@ -105,6 +119,13 @@ func (v StudentMDTO) ToT() *Student {
 	return &t
 }
 
+func (v StudentMDTO) ParseT(t *Student) {
+	err := copier.Copy(t, v)
+	if err != nil {
+		logger.Logrus().Errorln("copier.Copy error:", err)
+	}
+}
+
 func (v StudentQDTO) ToT() *Student {
 	var t Student
 	err := copier.Copy(&t, v)
@@ -115,6 +136,13 @@ func (v StudentQDTO) ToT() *Student {
 	return &t
 }
 
+func (v StudentQDTO) ParseT(t *Student) {
+	err := copier.Copy(t, v)
+	if err != nil {
+		logger.Logrus().Errorln("copier.Copy error:", err)
+	}
+}
+
 func (v StudentDTO) ToT() *Student {
 	var t Student
 	err := copier.Copy(&t, v)
@@ -123,4 +151,11 @@ func (v StudentDTO) ToT() *Student {
 		return nil
 	}
 	return &t
+}
+
+func (v StudentDTO) ParseT(t *Student) {
+	err := copier.Copy(t, v)
+	if err != nil {
+		logger.Logrus().Errorln("copier.Copy error:", err)
+	}
 }
