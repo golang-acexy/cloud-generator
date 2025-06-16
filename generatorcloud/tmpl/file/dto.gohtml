@@ -45,7 +45,7 @@ func (v {{.ModelStructName}}) ToDTO() *{{.ModelStructName}}DTO {
 }
 
 func (v {{.ModelStructName}}) ParseDTO(dto *{{.ModelStructName}}DTO) {
-    err := copier.Copy(&dto, v)
+    err := copier.Copy(dto, v)
     if err != nil {
         logger.Logrus().Errorln("copier.Copy error:", err)
     }
