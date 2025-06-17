@@ -3,7 +3,7 @@ module github.com/golang-acexy/cloud-generator
 go 1.23.5
 
 require (
-	github.com/acexy/gen v0.0.0-20250613032311-893d51eb2353
+	github.com/acexy/gen v0.0.0-20250616032633-246e062536b8
 	github.com/acexy/golang-toolkit v0.0.48
 	github.com/golang-acexy/cloud-database v0.0.0-20250610070434-3c8c3f2883d6
 	github.com/golang-acexy/starter-gorm v0.1.19-0.20250606092219-c3e4c8ed4384

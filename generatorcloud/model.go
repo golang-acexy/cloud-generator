@@ -42,6 +42,7 @@ type RepoData struct {
 	StructName string
 	ParamName  string
 	Pkg        string
+	PKG        string
 }
 
 type ModelGen struct {
@@ -136,48 +137,54 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 		field.Type = changeType(field.Type)
 	})
 
-	d := DtoData{
+	data := DtoData{
 		QueryStructMeta: meta,
 	}
 	config := m.gen.tableConfigsMap[modelName]
-	sExcludedFields := append(m.gen.modelBaseSaveDTOExcludedFields, config.SaveDTOExcludedFields...)
+
+	sExcludedFields := append(m.gen.modelBase.DTOExcluded.SaveDTOExcludedFields, config.DTOExcluded.SaveDTOExcludedFields...)
 	if len(sExcludedFields) > 0 {
-		d.SExcludedFields = coll.SliceFilterToMap(sExcludedFields, func(field string) (string, struct{}, bool) {
+		data.SExcludedFields = coll.SliceFilterToMap(sExcludedFields, func(field string) (string, struct{}, bool) {
 			return field, struct{}{}, true
 		})
-
 	}
-	d.IsSExcluded = func(s string) bool {
-		_, ok := d.SExcludedFields[s]
-		return ok
-	}
-	qExcludedFields := append(m.gen.modelBaseQueryDTOExcludedFields, config.QueryDTOExcludedFields...)
+	qExcludedFields := append(m.gen.modelBase.DTOExcluded.QueryDTOExcludedFields, config.DTOExcluded.QueryDTOExcludedFields...)
 	if len(qExcludedFields) > 0 {
-		d.QExcludedFields = coll.SliceFilterToMap(qExcludedFields, func(field string) (string, struct{}, bool) {
+		data.QExcludedFields = coll.SliceFilterToMap(qExcludedFields, func(field string) (string, struct{}, bool) {
 			return field, struct{}{}, true
 		})
 
 	}
-	d.IsQExcluded = func(s string) bool {
-		_, ok := d.QExcludedFields[s]
-		return ok
-	}
-	mExcludedFields := append(m.gen.modelBaseModifyDTOExcludedFields, config.ModifyDTOExcludedFields...)
+	mExcludedFields := append(m.gen.modelBase.DTOExcluded.ModifyDTOExcludedFields, config.DTOExcluded.ModifyDTOExcludedFields...)
 	if len(mExcludedFields) > 0 {
-		d.MExcludedFields = coll.SliceFilterToMap(mExcludedFields, func(field string) (string, struct{}, bool) {
+		data.MExcludedFields = coll.SliceFilterToMap(mExcludedFields, func(field string) (string, struct{}, bool) {
 			return field, struct{}{}, true
 		})
 	}
-	d.IsMExcluded = func(s string) bool {
-		_, ok := d.MExcludedFields[s]
+	dExcludedFields := append(m.gen.modelBase.DTOExcluded.DTOExcludedFields, config.DTOExcluded.DTOExcludedFields...)
+	if len(dExcludedFields) > 0 {
+		data.DExcludedFields = coll.SliceFilterToMap(dExcludedFields, func(field string) (string, struct{}, bool) {
+			return field, struct{}{}, true
+		})
+	}
+	data.IsQExcluded = func(s string) bool {
+		_, ok := data.QExcludedFields[s]
 		return ok
 	}
-	d.IsDExcluded = func(s string) bool {
-		_, ok := d.DExcludedFields[s]
+	data.IsSExcluded = func(s string) bool {
+		_, ok := data.SExcludedFields[s]
+		return ok
+	}
+	data.IsMExcluded = func(s string) bool {
+		_, ok := data.MExcludedFields[s]
+		return ok
+	}
+	data.IsDExcluded = func(s string) bool {
+		_, ok := data.DExcludedFields[s]
 		return ok
 	}
 	// 追加写入DTO
-	_ = m.gen.render(dtoTmpl, file, d)
+	_ = m.gen.render(dtoTmpl, file, data)
 
 	// 修改import
 	content, _ := os.ReadFile(outputFile)
@@ -188,10 +195,14 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 func (m *ModelGen) createRepo(outputFile string, structName string) {
 	dir := filepath.Dir(outputFile)
 	var repoPath string
+	var pkg string
 	if len(m.gen.repoRelativeModelPath) > 0 {
 		dir = filepath.Join(append([]string{dir}, m.gen.repoRelativeModelPath...)...)
+		pkg = m.gen.repoRelativeModelPath[len(m.gen.repoRelativeModelPath)-1]
+	} else {
+		dir = filepath.Join(dir, "repo")
+		pkg = "repo"
 	}
-	dir = filepath.Join(dir, "repo")
 	_ = os.MkdirAll(dir, os.ModePerm)
 	repoPath = filepath.Join(dir, str.CamelToSnake(str.LowFirstChar(structName))+"_repo.go")
 
@@ -199,23 +210,42 @@ func (m *ModelGen) createRepo(outputFile string, structName string) {
 	if _, err := os.Stat(repoPath); err == nil {
 		fmt.Println(structName, "已有repo文件 略过生成")
 		return
+	} else {
+		fmt.Println("生成repo文件", structName, repoPath)
 	}
 	var buf bytes.Buffer
 	_ = m.gen.render(repoTmpl, &buf, RepoData{
 		StructName: structName,
 		ParamName:  str.LowFirstChar(structName),
 		Pkg:        m.gen.modelPkg,
+		PKG:        pkg,
 	})
-	result, _ := imports.Process(outputFile, buf.Bytes(), nil)
+	result, _ := imports.Process(repoPath, buf.Bytes(), nil)
 	_ = os.WriteFile(repoPath, result, os.ModePerm)
 }
 
-func (m *ModelGen) Create() *gen.QueryGenResult {
+func (m *ModelGen) Create() {
 	m.loadSettings()
 	queryGenResult := m.gen.rawGen().ExecuteWithOutInfo()
+	var services []string
+	routers := make(map[string]*RouterConfig)
+
 	coll.MapForeachAll(queryGenResult.Path, func(modelName string, outputFile string) {
 		m.modelAppend(outputFile, modelName, queryGenResult.Meta[modelName])
 		m.createRepo(outputFile, modelName)
+		config := m.gen.getTableConfig(modelName)
+		if !config.DisableService {
+			services = append(services, modelName)
+		}
+		if config.Router != nil {
+			routers[modelName] = config.Router
+		}
 	})
-	return queryGenResult
+	if len(services) > 0 {
+		NewServiceGen(m.gen, services).Create()
+	}
+	if len(routers) > 0 {
+		NewRouterGen(m.gen, routers).Create()
+	}
+
 }

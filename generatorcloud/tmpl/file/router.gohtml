@@ -1,0 +1,47 @@
+package {{.PkgName}}
+
+import (
+    "github.com/golang-acexy/cloud-web/webcloud"
+    "github.com/golang-acexy/starter-gin/ginstarter"
+)
+
+var {{.ParamName}}Router = func() *{{.ModelStructName}}Router[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO] {
+    var bizService = biz.New{{.ModelStructName}}BizService()
+
+    return &{{.ModelStructName}}Router[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]{
+    {{- if .AuthorityFetchCode }}
+        BaseRouter: webcloud.NewBaseRouterWithAuthority[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO](bizService, {{.AuthorityFetchCode}}, "{{.DataLimitStructName}}"),
+    {{- else }}
+        BaseRouter: webcloud.NewBaseRouter[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO](bizService),
+    {{- end }}
+        bizService: bizService,
+    }
+}()
+
+func New{{.ModelStructName}}Router() *{{.ModelStructName}}Router[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO] {
+    return {{.ParamName}}Router
+}
+
+type {{.ModelStructName}}Router[ID webcloud.IDType, S, M, Q, D any] struct {
+    *webcloud.BaseRouter[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]
+    bizService webcloud.BaseBizService[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]
+}
+
+func (u *{{.ModelStructName}}Router[ID, S, M, Q, D]) Info() *ginstarter.RouterInfo {
+    return &ginstarter.RouterInfo{
+        GroupPath: "{{.GroupPath}}",
+    }
+}
+
+func (u *{{.ModelStructName}}Router[ID, S, M, Q, D]) registerBaseHandler(router *ginstarter.RouterWrapper) {
+    u.BaseRouter.RegisterBaseHandler(router, u.BaseRouter)
+}
+
+func (u *{{.ModelStructName}}Router[ID, S, M, Q, D]) Handlers(router *ginstarter.RouterWrapper) {
+    // 注册基础路由
+    u.registerBaseHandler(router)
+
+    // 自定义路由业务
+}
+
+// 自定义路由业务

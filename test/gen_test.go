@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestDatabase(t *testing.T) {
+func TestGen(t *testing.T) {
 	db, _ := gorm.Open(mysql.Open("root:root@(127.0.0.1:13306)/test?charset=utf8mb4&parseTime=True&loc=Local"))
 	g := generatorcloud.NewGen(db, "./model", []generatorcloud.TableConfig{
 		{
@@ -19,20 +19,24 @@ func TestDatabase(t *testing.T) {
 			ModelName: "Student",
 		},
 	})
-	g.SetDTOExcludedFields([]string{
-		"ID",
-		"CreateTime",
-		"UpdateTime",
-	}, []string{
-		"CreateTime",
-		"UpdateTime",
-	}, []string{
-		"ID",
-		"CreateTime",
-		"UpdateTime",
+	g.SetIncludeModelPkgPath("github.com/golang-acexy/cloud-generator/test/model")
+	g.SetModelBase(&generatorcloud.ModelBase{
+		DTOExcluded: generatorcloud.ModelDTOExcluded{
+			SaveDTOExcludedFields: []string{
+				"ID",
+				"CreateTime",
+				"UpdateTime",
+			},
+			QueryDTOExcludedFields: []string{
+				"CreateTime",
+				"UpdateTime",
+			},
+			ModifyDTOExcludedFields: []string{
+				"ID",
+				"CreateTime",
+				"UpdateTime",
+			},
+		},
 	})
-
-	g.SetModelPkg("github.com/golang-acexy/cloud-generator/test/model")
-
 	g.Create()
 }

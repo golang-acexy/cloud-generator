@@ -13,49 +13,83 @@ import (
 type TableConfig struct {
 	TableName string
 	ModelName string
-	// 保存DTO时，忽略的结构体字段
-	SaveDTOExcludedFields []string
-	// 查询DTO时，忽略的结构体字段
-	QueryDTOExcludedFields []string
-	// 修改DTO时，忽略的结构体字段
-	ModifyDTOExcludedFields []string
-	// DTO时，忽略的结构体字段
-	DTOExcludedFields []string
+	// model 单独设置
+	DTOExcluded ModelDTOExcluded
 
-	RouterConfig *RouterConfig
+	// service 单独设置
+	DisableService bool
+
+	Router *RouterConfig
 }
 
-type RouterConfig struct {
+type ModelBase struct {
+	DTOExcluded ModelDTOExcluded
+	// repo设置
+	RepoRelativeModelPath []string
+	// service设置
+	ServiceConfig *ServiceConfig
+}
+
+type ServiceBase struct {
+	OrderBySQL    string
+	MaxQueryLimit int
+}
+
+type ModelDTOExcluded struct {
+	SaveDTOExcludedFields   []string
+	QueryDTOExcludedFields  []string
+	ModifyDTOExcludedFields []string
+	DTOExcludedFields       []string
+}
+
+type BaseRouter struct {
+	// model 相对于 modelBase 的路径
+	RelativeModelPath []string
+	GroupPath         string
+	FilePrefix        string
+}
+
+type BaseRouterWithDataCheck struct {
+	BaseRouter
+	AuthorityFetchCode  string
+	DataLimitStructName string
 }
 
 type Generator struct {
-	gen      *gen.Generator
-	db       *gorm.DB
-	modelPkg string
+	gen        *gen.Generator
+	db         *gorm.DB
+	modelPkg   string
+	baseOutput string
 
-	// 保存DTO时，忽略的结构体字段
-	modelBaseSaveDTOExcludedFields []string
-	// 查询DTO时，忽略的结构体字段
-	modelBaseQueryDTOExcludedFields []string
-	// 修改DTO时，忽略的结构体字段
-	modelBaseModifyDTOExcludedFields []string
+	modelBase   *ModelBase
+	serviceBase *ServiceBase
 
-	repoRelativeModelPath []string
-	tableConfigs          []TableConfig
+	repoRelativeModelPath    []string
+	serviceRelativeModelPath []string
+
+	tableConfigs []TableConfig
 	// key为modelName
 	tableConfigsMap map[string]TableConfig
 }
 
-func NewGen(db *gorm.DB, outPath string, tableConfigs []TableConfig) *Generator {
+type RouterConfig struct {
+	// 不带权限控制的基础路由
+	BaseRouter *BaseRouter
+	// 带权限控制的基础路由
+	BaseRouterWithDataCheck *BaseRouterWithDataCheck
+}
+
+func NewGen(db *gorm.DB, baseRootPath string, tableConfigs []TableConfig) *Generator {
 	d := &Generator{
 		tableConfigs: tableConfigs,
 		tableConfigsMap: coll.SliceFilterToMap(tableConfigs, func(tableConfig TableConfig) (string, TableConfig, bool) {
 			return tableConfig.ModelName, tableConfig, true
 		}),
-		db: db,
+		baseOutput: baseRootPath,
+		db:         db,
 	}
 	g := gen.NewGenerator(gen.Config{
-		OutPath: outPath,
+		OutPath: baseRootPath,
 		Mode:    gen.WithoutContext,
 	})
 	g.UseDB(db)
@@ -63,41 +97,41 @@ func NewGen(db *gorm.DB, outPath string, tableConfigs []TableConfig) *Generator 
 	return d
 }
 
-func NewGenWithConfig(db *gorm.DB, tableConfigs []TableConfig, config gen.Config) *Generator {
-	d := &Generator{
-		tableConfigs: tableConfigs,
-		tableConfigsMap: coll.SliceFilterToMap(tableConfigs, func(tableConfig TableConfig) (string, TableConfig, bool) {
-			return tableConfig.ModelName, tableConfig, true
-		}),
-		db: db,
-	}
-	g := gen.NewGenerator(config)
-	g.UseDB(db)
-	d.gen = g
-	return d
+func (g *Generator) getTableConfig(modelName string) TableConfig {
+	return g.tableConfigsMap[modelName]
 }
 
-func (d *Generator) SetDTOExcludedFields(s, q, m []string) {
-	d.modelBaseSaveDTOExcludedFields = s
-	d.modelBaseQueryDTOExcludedFields = q
-	d.modelBaseModifyDTOExcludedFields = m
+// SetModelBase 设置model的基础信息
+func (g *Generator) SetModelBase(base *ModelBase) {
+	g.modelBase = base
 }
 
-func (d *Generator) SetModelPkg(modelPkg string) {
-	d.modelPkg = modelPkg
+// SetIncludeModelPkgPath 设置model包名 用于使用该package
+func (g *Generator) SetIncludeModelPkgPath(modelPkg string) {
+	g.modelPkg = modelPkg
 }
 
-// SetRepoRelativeModelPath 设置 repo 相对于 model 的路径 例如 上一级 []string{".."}
-func (d *Generator) SetRepoRelativeModelPath(path []string) {
-	d.repoRelativeModelPath = path
+// SetRepoRelativeModelPath 设置 repo 相对于 modelBase 的路径 例如 上一级 []string{".."}
+func (g *Generator) SetRepoRelativeModelPath(path []string) {
+	g.repoRelativeModelPath = path
 }
 
-func (d *Generator) rawGen() *gen.Generator {
-	return d.gen
+// SetServiceRelativeModelPath 添加 service 相对于 modelBase 的路径 例如 上一级 []string{".."}
+func (g *Generator) SetServiceRelativeModelPath(path []string) {
+	g.serviceRelativeModelPath = path
 }
 
-func (d *Generator) dBType() string {
-	switch d.db.Dialector.(type) {
+// SetServiceBase 设置 service 基础信息
+func (g *Generator) SetServiceBase(base *ServiceBase) {
+	g.serviceBase = base
+}
+
+func (g *Generator) rawGen() *gen.Generator {
+	return g.gen
+}
+
+func (g *Generator) dBType() string {
+	switch g.db.Dialector.(type) {
 	case *mysql.Dialector:
 		return "mysql"
 	case *postgres.Dialector:
@@ -107,7 +141,7 @@ func (d *Generator) dBType() string {
 	}
 }
 
-func (d *Generator) render(tmpl string, wr io.Writer, data interface{}) error {
+func (g *Generator) render(tmpl string, wr io.Writer, data interface{}) error {
 	t, err := template.New(tmpl).Parse(tmpl)
 	if err != nil {
 		return err
@@ -120,6 +154,6 @@ type DBTypeData struct {
 	DBType     string
 }
 
-func (d *Generator) Create() {
-	NewModelGen(d).Create()
+func (g *Generator) Create() {
+	NewModelGen(g).Create()
 }

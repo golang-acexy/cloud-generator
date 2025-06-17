@@ -1,36 +1,87 @@
-package biz
+package {{.PKG}}
 
-import "github.com/golang-acexy/cloud-web/webcloud"
+import (
+    "{{.ModelPKG}}"
+    "github.com/golang-acexy/cloud-web/webcloud"
+    "gorm.io/gorm"
+)
 
-type UserBizService[ID webcloud.IDType, S, M, Q, T any] struct {
+var {{.ParamName}}BizService = &{{.StructName}}BizService[int64, model.{{.StructName}}SDTO, model.{{.StructName}}MDTO, model.{{.StructName}}QDTO, model.{{.StructName}}DTO]{
+    repo: repo.New{{.StructName}}Repo(),
 }
 
-func (u UserBizService[ID, S, M, Q, T]) Save(save map[string]any) (ID, error) {
-//TODO implement me
-panic("implement me")
+func New{{.StructName}}BizService() *{{.StructName}}BizService[int64, model.{{.StructName}}SDTO, model.{{.StructName}}MDTO, model.{{.StructName}}QDTO, model.{{.StructName}}DTO] {
+    return {{.ParamName}}BizService
 }
 
-func (u UserBizService[ID, S, M, Q, T]) QueryByID(condition map[string]any, result *T) (int64, error) {
-//TODO implement me
-panic("implement me")
+type {{.StructName}}BizService[ID webcloud.IDType, S, M, Q, D any] struct {
+    repo *repo.{{.StructName}}Repo
 }
 
-func (u UserBizService[ID, S, M, Q, T]) QueryOne(condition map[string]any, result *T) (int64, error) {
-//TODO implement me
-panic("implement me")
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) MaxQueryCount() int {
+    return 500
 }
 
-func (u UserBizService[ID, S, M, Q, T]) QueryByPager(condition map[string]any, pager *webcloud.Pager[T]) {
-//TODO implement me
-panic("implement me")
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) DefaultOrderBySQL() string {
+    return "id desc"
 }
 
-func (u UserBizService[ID, S, M, Q, T]) ModifyByID(condition map[string]any, update map[string]any) (int64, error) {
-//TODO implement me
-panic("implement me")
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) Save(save *model.{{.StructName}}SDTO) (int64, error) {
+    var t = save.ToT()
+    _, err := v.repo.SaveExcludeZeroField(t)
+    if err != nil {
+        return 0, err
+    }
+    return t.ID, nil
 }
 
-func (u UserBizService[ID, S, M, Q, T]) RemoveByID(condition map[string]any) (int64, error) {
-//TODO implement me
-panic("implement me")
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryByID(condition map[string]any, result *model.{{.StructName}}DTO) (row int64, err error) {
+    var r model.{{.StructName}}
+    row, err = v.repo.QueryOneByMap(condition, &r)
+    if row > 0 {
+        r.ParseDTO(result)
+    }
+    return
+}
+
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryOne(condition map[string]any, result *model.{{.StructName}}DTO) (row int64, err error) {
+    var r model.{{.StructName}}
+    row, err = v.repo.QueryOneByMap(condition, &r)
+    if row > 0 {
+        r.ParseDTO(result)
+    }
+    return
+}
+
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) Query(condition map[string]any, result *[]*model.{{.StructName}}DTO) (row int64, err error) {
+    var r []*model.{{.StructName}}
+    row, err = v.repo.QueryByGorm(&r, func(db *gorm.DB) {
+        db.Where(condition).Order(v.DefaultOrderBySQL()).Limit(v.MaxQueryCount()).Scan(&r)
+    })
+    if row > 0 {
+        model.{{.StructName}}Slice(r).ParseDTOs(result)
+    }
+    return
+}
+
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryByPager(condition map[string]any, pager *webcloud.Pager[model.{{.StructName}}DTO]) error {
+    p := databasecloud.Pager[model.{{.StructName}}]{
+        Number: pager.Number,
+        Size:   pager.Size,
+    }
+    err := v.repo.QueryPageByMap(condition, v.DefaultOrderBySQL(), &p)
+    if err != nil {
+        return err
+    }
+    pager.Records = model.{{.StructName}}Slice(p.Records).ToDTOs()
+    pager.Total = p.Total
+    return nil
+}
+
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByID(update, condition map[string]any) (int64, error) {
+    return v.repo.ModifyByMap(update, condition)
+}
+
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) RemoveByID(condition map[string]any) (int64, error) {
+    return v.repo.RemoveByMap(condition)
 }
