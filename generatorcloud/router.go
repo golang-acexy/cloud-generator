@@ -26,6 +26,7 @@ type RouterData struct {
 	AuthorityFetchCode  string
 	DataLimitStructName string
 	GroupPath           string
+	DisableBaseHandler  bool
 }
 
 func NewRouterGen(gen *Generator, config map[string]*RouterConfig) *RouterGen {
@@ -82,6 +83,7 @@ func (s *RouterGen) Create() {
 				GroupPath:           config.BaseRouterWithDataCheck.GroupPath,
 				DataLimitStructName: config.BaseRouterWithDataCheck.DataLimitStructName,
 				AuthorityFetchCode:  config.BaseRouterWithDataCheck.AuthorityFetchCode,
+				DisableBaseHandler:  config.BaseRouterWithDataCheck.DisableBaseHandler,
 			})
 			result, _ := imports.Process(filePath, buf.Bytes(), nil)
 			_ = os.WriteFile(filePath, result, os.ModePerm)

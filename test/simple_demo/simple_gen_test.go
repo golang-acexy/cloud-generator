@@ -35,6 +35,7 @@ func TestGen(t *testing.T) {
 					},
 					DataLimitStructName: "UserID",
 					AuthorityFetchCode:  "biz.UsrAuthorityFetch",
+					DisableBaseHandler:  true,
 				},
 			},
 		},

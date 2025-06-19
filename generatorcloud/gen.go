@@ -53,6 +53,7 @@ type BaseRouterWithDataCheck struct {
 	BaseRouter
 	AuthorityFetchCode  string
 	DataLimitStructName string
+	DisableBaseHandler  bool
 }
 
 type Generator struct {
