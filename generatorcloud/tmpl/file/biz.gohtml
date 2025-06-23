@@ -18,6 +18,10 @@ type {{.StructName}}BizService[ID webcloud.IDType, S, M, Q, D any] struct {
     repo *repo.{{.StructName}}Repo
 }
 
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) GetRepo() *repo.{{.StructName}}Repo {
+    return v.repo
+}
+
 func (v *{{.StructName}}BizService[ID, S, M, Q, D]) MaxQueryCount() int {
     return 500
 }
