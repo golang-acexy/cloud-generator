@@ -15,7 +15,6 @@ var {{.ParamName}}Router = func() *{{.ModelStructName}}Router[int64, model.{{.Mo
         BaseRouter: webcloud.NewBaseRouter[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO](bizService),
     {{- end }}
         bizService: bizService,
-        bizServiceImpl bizService,
     }
 }()
 
@@ -25,8 +24,7 @@ func New{{.ModelStructName}}Router() *{{.ModelStructName}}Router[int64, model.{{
 
 type {{.ModelStructName}}Router[ID webcloud.IDType, S, M, Q, D any] struct {
     *webcloud.BaseRouter[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]
-    bizService webcloud.BaseBizService[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]
-    bizServiceImpl *biz.{{.ModelStructName}}BizService[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]
+    bizService *biz.{{.ModelStructName}}BizService[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]
 }
 
 func (u *{{.ModelStructName}}Router[ID, S, M, Q, D]) Info() *ginstarter.RouterInfo {
