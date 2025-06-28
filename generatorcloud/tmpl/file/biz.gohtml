@@ -14,6 +14,23 @@ func New{{.StructName}}BizService() *{{.StructName}}BizService[int64, model.{{.S
     return {{.ParamName}}BizService
 }
 
+
+func (r {{.StructName}}Repo) RawMapper() {{.StructName}}Mapper {
+	return {{.StructName}}Mapper{r.GormRepository.RawMapper()}
+}
+
+func (r {{.StructName}}Repo) WithTxRepo(tx *gorm.DB) *{{.StructName}}Repo {
+	base := r.GormRepository.WithTxRepo(tx)
+	return &{{.StructName}}Repo{
+		GormRepository: base,
+	}
+}
+
+func (r {{.StructName}}Repo) NewTxRepo(tx *gorm.DB) *{{.StructName}}Repo {
+	return &{{.StructName}}Repo{
+		GormRepository: r.GormRepository.NewTxRepo(),
+	}
+}
 type {{.StructName}}BizService[ID webcloud.IDType, S, M, Q, D any] struct {
     repo *repo.{{.StructName}}Repo
 }
