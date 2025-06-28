@@ -32,7 +32,7 @@ func (r {{.StructName}}Repo) WithTxRepo(tx *gorm.DB) {{.StructName}}Repo {
 	}
 }
 
-func (r {{.StructName}}Repo) NewTxRepo(tx *gorm.DB) {{.StructName}}Repo {
+func (r {{.StructName}}Repo) NewTxRepo() {{.StructName}}Repo {
 	return {{.StructName}}Repo{
 		GormRepository: r.GormRepository.NewTxRepo(),
 	}
