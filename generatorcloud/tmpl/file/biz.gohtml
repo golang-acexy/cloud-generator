@@ -20,9 +20,8 @@ func (r {{.StructName}}Repo) RawMapper() {{.StructName}}Mapper {
 }
 
 func (r {{.StructName}}Repo) WithTxRepo(tx *gorm.DB) *{{.StructName}}Repo {
-	base := r.GormRepository.WithTxRepo(tx)
 	return &{{.StructName}}Repo{
-		GormRepository: base,
+		GormRepository: r.GormRepository.WithTxRepo(tx),
 	}
 }
 
@@ -31,6 +30,7 @@ func (r {{.StructName}}Repo) NewTxRepo(tx *gorm.DB) *{{.StructName}}Repo {
 		GormRepository: r.GormRepository.NewTxRepo(),
 	}
 }
+
 type {{.StructName}}BizService[ID webcloud.IDType, S, M, Q, D any] struct {
     repo *repo.{{.StructName}}Repo
 }
