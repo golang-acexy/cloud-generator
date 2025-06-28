@@ -127,7 +127,7 @@ func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryByPager(pager webcloud.
 		Size:   pager.Size,
 	}
 	err := v.repo.QueryPageByCond(pager.Condition.ToT(), v.DefaultOrderBySQL(), &p)
-	if err != nil {
+	if err == nil {
 		r.Total = p.Total
 		r.Records = model.{{.StructName}}Slice(p.Records).ToDTOs()
 	}
