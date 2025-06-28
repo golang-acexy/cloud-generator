@@ -18,11 +18,24 @@ var {{.ParamName}}Repo = &{{.StructName}}Repo{
 	},
 }
 
-func (r {{.StructName}}Repo) RawMapper() {{.StructName}}Mapper {
-	return r.RawIMapper().({{.StructName}}Mapper)
-}
 func New{{.StructName}}Repo() *{{.StructName}}Repo {
 	return {{.ParamName}}Repo
+}
+
+func (r {{.StructName}}Repo) RawMapper() {{.StructName}}Mapper {
+	return {{.StructName}}Mapper{r.GormRepository.RawMapper()}
+}
+
+func (r {{.StructName}}Repo) WithTxRepo(tx *gorm.DB) {{.StructName}}Repo {
+	return {{.StructName}}Repo{
+		GormRepository: r.GormRepository.WithTxRepo(tx),
+	}
+}
+
+func (r {{.StructName}}Repo) NewTxRepo(tx *gorm.DB) {{.StructName}}Repo {
+	return {{.StructName}}Repo{
+		GormRepository: r.GormRepository.NewTxRepo(),
+	}
 }
 
 type {{.StructName}}Mapper struct {
