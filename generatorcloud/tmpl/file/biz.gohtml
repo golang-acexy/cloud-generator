@@ -140,6 +140,12 @@ func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByID(updated *model.{{
 	return row > 0 && err == nil
 }
 
+// ModifyByIDExcludeZeroField 根据主键修改数据 不包括零值数据
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByIDExcludeZeroField(updated *model.{{.StructName}}MDTO) bool {
+	row, err := v.repo.ModifyByIDExcludeZeroField(updated.ToT())
+	return row > 0 && err == nil
+}
+
 // RemoveByID 根据主键删除数据
 func (v *{{.StructName}}BizService[ID, S, M, Q, D]) RemoveByID(id ID) bool {
 	row, err := v.repo.RemoveByID(id)
