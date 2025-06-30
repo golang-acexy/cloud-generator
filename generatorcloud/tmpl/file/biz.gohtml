@@ -146,6 +146,12 @@ func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByIDExcludeZeroField(u
 	return row > 0 && err == nil
 }
 
+// ModifyByIdUseMap 根据主键修改数据 使用map
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByIdUseMap(updated map[string]any, id ID) bool {
+	row, err := v.repo.ModifyByIdUseMap(updated, id)
+	return row > 0 && err == nil
+}
+
 // RemoveByID 根据主键删除数据
 func (v *{{.StructName}}BizService[ID, S, M, Q, D]) RemoveByID(id ID) bool {
 	row, err := v.repo.RemoveByID(id)
