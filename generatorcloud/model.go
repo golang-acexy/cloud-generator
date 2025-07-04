@@ -9,6 +9,7 @@ import (
 	"github.com/acexy/gen/core/model"
 	"github.com/acexy/gen/field"
 	"github.com/acexy/golang-toolkit/util/coll"
+	"github.com/acexy/golang-toolkit/util/json"
 	"github.com/acexy/golang-toolkit/util/str"
 	"golang.org/x/tools/imports"
 	"os"
@@ -127,6 +128,19 @@ func changeType(typeStr string) string {
 func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *generate.QueryStructMeta) {
 	file, _ := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
+	fmt.Println(json.ToJson(meta))
+	// 移除所有gorm tag
+	coll.SliceForeachAll(meta.Fields, func(field *model.Field) {
+		field.GORMTag = nil
+		field.Tag = coll.MapFilterCollect(field.Tag, func(k string, v string) (string, string, bool) {
+			if k != "gorm" {
+				return k, v, true
+			}
+			return "", "", false
+		})
+	})
+	fmt.Println(json.ToJson(meta))
+
 	// 追加写入接口实现函数 tableName
 	_ = m.gen.render(methodTmpl, file, ModelData{
 		StructName: modelName,
@@ -141,7 +155,6 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 		QueryStructMeta: meta,
 	}
 	config := m.gen.tableConfigsMap[modelName]
-
 	sExcludedFields := append(m.gen.modelBase.DTOExcluded.SaveDTOExcludedFields, config.DTOExcluded.SaveDTOExcludedFields...)
 	if len(sExcludedFields) > 0 {
 		data.SExcludedFields = coll.SliceFilterToMap(sExcludedFields, func(field string) (string, struct{}, bool) {
@@ -153,7 +166,6 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 		data.QExcludedFields = coll.SliceFilterToMap(qExcludedFields, func(field string) (string, struct{}, bool) {
 			return field, struct{}{}, true
 		})
-
 	}
 	mExcludedFields := append(m.gen.modelBase.DTOExcluded.ModifyDTOExcludedFields, config.DTOExcluded.ModifyDTOExcludedFields...)
 	if len(mExcludedFields) > 0 {
