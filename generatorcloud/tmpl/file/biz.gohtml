@@ -67,7 +67,7 @@ func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseQuery(condition map[stri
     return
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseQueryByPager(condition map[string]any, pager webcloud.Pager[model.{{.StructName}}DTO]) error {
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseQueryByPager(condition map[string]any, pager *webcloud.Pager[model.{{.StructName}}DTO]) error {
     p := databasecloud.Pager[model.{{.StructName}}]{
         Number: pager.Number,
         Size:   pager.Size,
