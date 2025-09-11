@@ -4,6 +4,10 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+
 	"github.com/acexy/gen"
 	"github.com/acexy/gen/core/generate"
 	"github.com/acexy/gen/core/model"
@@ -11,9 +15,6 @@ import (
 	"github.com/acexy/golang-toolkit/util/coll"
 	"github.com/acexy/golang-toolkit/util/str"
 	"golang.org/x/tools/imports"
-	"os"
-	"path/filepath"
-	"regexp"
 )
 
 var defaultFieldOptions = []gen.ModelOpt{
