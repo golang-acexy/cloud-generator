@@ -27,6 +27,9 @@ func (v *{{.StructName}}BizService[ID, S, M, Q, D]) DefaultOrderBySQL() string {
 }
 
 func (v *{{.StructName}}BizService[ID, S, M, Q, D]) Save(save *model.{{.StructName}}SDTO) (int64, error) {
+    if save == nil {
+        return 0, nil
+    }
     var t = save.ToT()
     _, err := v.repo.SaveExcludeZeroField(t)
     if err != nil {
@@ -64,7 +67,7 @@ func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseQuery(condition map[stri
     return
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseQueryByPager(condition map[string]any, pager webcloud.Pager[model.{{.StructName}}DTO]) error {
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseQueryByPager(condition map[string]any, pager *webcloud.Pager[model.{{.StructName}}DTO]) error {
     p := databasecloud.Pager[model.{{.StructName}}]{
         Number: pager.Number,
         Size:   pager.Size,
@@ -98,6 +101,9 @@ func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryByID(id ID) *model.{{.S
 
 // QueryOneByCond 通过条件查询一条数据
 func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryOneByCond(condition *model.{{.StructName}}QDTO) *model.{{.StructName}}DTO {
+    if condition == nil {
+        return nil
+    }
 	var r model.{{.StructName}}
 	row, err := v.repo.QueryOneByCond(condition.ToT(), &r)
 	if row > 0 && err == nil {
@@ -108,6 +114,9 @@ func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryOneByCond(condition *mo
 
 // QueryByCond 通过条件查询多条数据
 func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryByCond(condition *model.{{.StructName}}QDTO) []*model.{{.StructName}}DTO {
+    if condition == nil {
+        return nil
+    }
 	var rs []*model.{{.StructName}}
 	row, err := v.repo.QueryByCond(condition.ToT(), v.DefaultOrderBySQL(), &rs)
 	if row > 0 && err == nil {
@@ -136,12 +145,18 @@ func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryByPager(pager webcloud.
 
 // ModifyByID 根据主键修改数据
 func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByID(updated *model.{{.StructName}}MDTO) bool {
+    if updated == nil {
+        return false
+    }
 	row, err := v.repo.ModifyByID(updated.ToT())
 	return row > 0 && err == nil
 }
 
 // ModifyByIDExcludeZeroField 根据主键修改数据 不包括零值数据
 func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByIDExcludeZeroField(updated *model.{{.StructName}}MDTO) bool {
+    if updated == nil {
+        return false
+    }
 	row, err := v.repo.ModifyByIDExcludeZeroField(updated.ToT())
 	return row > 0 && err == nil
 }
@@ -155,5 +170,21 @@ func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByIdUseMap(updated map
 // RemoveByID 根据主键删除数据
 func (v *{{.StructName}}BizService[ID, S, M, Q, D]) RemoveByID(id ID) bool {
 	row, err := v.repo.RemoveByID(id)
+	return row > 0 && err == nil
+}
+
+
+// RemoveByCond 根据条件删除数据
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) RemoveByCond(condition *model.{{.StructName}}DTO) bool {
+    if condition == nil {
+        return false
+    }
+	row, err := v.repo.RemoveByCond(condition.ToT())
+	return row > 0 && err == nil
+}
+
+// RemoveByMap 根据条件删除数据
+func (v *{{.StructName}}BizService[ID, S, M, Q, D]) RemoveByMap(condition map[string]any) bool {
+	row, err := v.repo.RemoveByMap(condition)
 	return row > 0 && err == nil
 }

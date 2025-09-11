@@ -1,10 +1,11 @@
 package test
 
 import (
+	"testing"
+
 	"github.com/golang-acexy/cloud-generator/generatorcloud"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"testing"
 )
 
 func TestGen(t *testing.T) {

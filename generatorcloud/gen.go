@@ -1,13 +1,14 @@
 package generatorcloud
 
 import (
+	"io"
+	"text/template"
+
 	"github.com/acexy/gen"
 	"github.com/acexy/golang-toolkit/util/coll"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"io"
-	"text/template"
 )
 
 type TableConfig struct {

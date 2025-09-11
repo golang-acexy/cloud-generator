@@ -4,17 +4,17 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+
 	"github.com/acexy/gen"
 	"github.com/acexy/gen/core/generate"
 	"github.com/acexy/gen/core/model"
 	"github.com/acexy/gen/field"
 	"github.com/acexy/golang-toolkit/util/coll"
-	"github.com/acexy/golang-toolkit/util/json"
 	"github.com/acexy/golang-toolkit/util/str"
 	"golang.org/x/tools/imports"
-	"os"
-	"path/filepath"
-	"regexp"
 )
 
 var defaultFieldOptions = []gen.ModelOpt{
@@ -128,7 +128,6 @@ func changeType(typeStr string) string {
 func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *generate.QueryStructMeta) {
 	file, _ := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
-	fmt.Println(json.ToJson(meta))
 	// 移除所有gorm tag
 	coll.SliceForeachAll(meta.Fields, func(field *model.Field) {
 		field.GORMTag = nil
@@ -139,7 +138,6 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 			return "", "", false
 		})
 	})
-	fmt.Println(json.ToJson(meta))
 
 	// 追加写入接口实现函数 tableName
 	_ = m.gen.render(methodTmpl, file, ModelData{
