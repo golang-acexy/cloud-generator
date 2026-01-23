@@ -1,7 +1,7 @@
 package {{.PKG}}
 
 import (
-	"github.com/golang-acexy/cloud-database/databasecloud"
+	"github.com/golang-acexy/cloud-database/databasecloud.gorm"
 	"github.com/golang-acexy/starter-gorm/gormstarter"
 {{- if .Pkg }}
 	"{{ .Pkg }}"
@@ -9,7 +9,7 @@ import (
 )
 
 var {{.ParamName}}Repo = &{{.StructName}}Repo{
-	GormRepository: databasecloud.GormRepository[
+	Repository: databasecloud.Repository[
 		gormstarter.IBaseMapper[gormstarter.BaseMapper[model.{{.StructName}}], model.{{.StructName}}],
 		gormstarter.BaseMapper[model.{{.StructName}}],
 		model.{{.StructName}},
@@ -23,18 +23,18 @@ func New{{.StructName}}Repo() *{{.StructName}}Repo {
 }
 
 func (r {{.StructName}}Repo) RawMapper() {{.StructName}}Mapper {
-	return {{.StructName}}Mapper{r.GormRepository.RawMapper()}
+	return {{.StructName}}Mapper{r.Repository.RawMapper()}
 }
 
 func (r {{.StructName}}Repo) WithTxRepo(tx *gorm.DB) {{.StructName}}Repo {
 	return {{.StructName}}Repo{
-		GormRepository: r.GormRepository.WithTxRepo(tx),
+		Repository: r.Repository.WithTxRepo(tx),
 	}
 }
 
 func (r {{.StructName}}Repo) NewTxRepo() {{.StructName}}Repo {
 	return {{.StructName}}Repo{
-		GormRepository: r.GormRepository.NewTxRepo(),
+		Repository: r.Repository.NewTxRepo(),
 	}
 }
 
@@ -42,7 +42,7 @@ type {{.StructName}}Mapper struct {
 	gormstarter.BaseMapper[model.{{.StructName}}]
 }
 type {{.StructName}}Repo struct {
-	databasecloud.GormRepository[gormstarter.IBaseMapper[gormstarter.BaseMapper[model.{{.StructName}}],
+	databasecloud.Repository[gormstarter.IBaseMapper[gormstarter.BaseMapper[model.{{.StructName}}],
 		model.{{.StructName}}], gormstarter.BaseMapper[model.{{.StructName}}], model.{{.StructName}}]
 }
 
