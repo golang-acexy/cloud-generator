@@ -1,9 +1,14 @@
 filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+filippo.io/edwards25519 v1.1.1 h1:YpjwWWlNmGIDyXOn8zLzqiD+9TyIlPhGFG96P39uBpw=
+filippo.io/edwards25519 v1.1.1/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+filippo.io/edwards25519 v1.2.0 h1:crnVqOiS4jqYleHd9vaKZ+HKtHfllngJIiOpNpoJsjo=
+filippo.io/edwards25519 v1.2.0/go.mod h1:xzAOLCNug/yB62zG1bQ8uziwrIqIuxhctzJT18Q77mc=
 github.com/acexy/gen v0.0.1 h1:zVhcUhrlyFVQAvl13LjEeOL/JPU9fcLq0Z6to4lDh4U=
 github.com/acexy/gen v0.0.1/go.mod h1:8PbqdqUgg4ov6e3/N5nlHZ8Z3JkeU+NkxKa8V+7dRKs=
 github.com/acexy/golang-toolkit v0.0.61 h1:BF/Bgj7CQXRFzSbmSikkc5moc+h+cBar9kloY49HZww=
 github.com/acexy/golang-toolkit v0.0.61/go.mod h1:Grw6zufg0eX3VZBFJYmWFxxK2ejvogFPbiawFZJl1NU=
+github.com/acexy/golang-toolkit v0.0.62/go.mod h1:imLBjR0qEN8zEOgOxkBLpOM1kW22x68mPZQvyn+PhQ4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

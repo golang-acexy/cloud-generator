@@ -4,7 +4,7 @@ go 1.24.6
 
 require (
 	github.com/acexy/gen v0.0.1
-	github.com/acexy/golang-toolkit v0.0.61
+	github.com/acexy/golang-toolkit v0.0.62
 	golang.org/x/tools v0.41.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.0
@@ -12,7 +12,7 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/iancoleman/strcase v0.3.0 // indirect
