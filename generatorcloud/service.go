@@ -5,9 +5,9 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
-	"github.com/acexy/golang-toolkit/util/coll"
 	"github.com/acexy/golang-toolkit/util/str"
 	"golang.org/x/tools/imports"
 )
@@ -21,12 +21,14 @@ type ServiceGen struct {
 }
 
 type ServiceData struct {
-	StructName string
-	ParamName  string
-	ModelPKG   string
-	PKG        string
-}
-type ServiceConfig struct {
+	StructName     string
+	ParamName      string
+	ModelPKG       string
+	RepoPKG        string
+	PKG            string
+	IDType         string
+	DefaultOrderBy string
+	MaxQuerySize   int
 }
 
 func NewServiceGen(gen *Generator, models []string) *ServiceGen {
@@ -36,8 +38,22 @@ func NewServiceGen(gen *Generator, models []string) *ServiceGen {
 	}
 }
 
-func (s *ServiceGen) Create() {
-	coll.SliceForeachAll(s.models, func(model string) {
+func (s *ServiceGen) Create() error {
+	defaultOrderBy := "id desc"
+	maxQuerySize := 500
+	if s.gen.serviceBase != nil {
+		if s.gen.serviceBase.DefaultOrderBy != "" {
+			defaultOrderBy = s.gen.serviceBase.DefaultOrderBy
+		}
+		if s.gen.serviceBase.MaxQuerySize > 0 {
+			maxQuerySize = s.gen.serviceBase.MaxQuerySize
+		}
+	}
+	for _, model := range s.models {
+		repoPKG := path.Join(s.gen.modelPkg, "repo")
+		if len(s.gen.repoRelativeModelPath) > 0 {
+			repoPKG = path.Join(append([]string{s.gen.modelPkg}, s.gen.repoRelativeModelPath...)...)
+		}
 		dir := s.gen.baseOutput
 		var servicePath string
 		var pkg string
@@ -48,23 +64,37 @@ func (s *ServiceGen) Create() {
 			pkg = "biz"
 			dir = filepath.Join(dir, "biz")
 		}
-		_ = os.MkdirAll(dir, os.ModePerm)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
 		servicePath = filepath.Join(dir, str.CamelToSnake(str.LowFirstChar(model))+"_biz.go")
 		//判断文件是否存在
 		if _, err := os.Stat(servicePath); err == nil {
 			fmt.Println(model, "已有biz文件 略过生成")
-			return
+			continue
 		} else {
 			fmt.Println("生成biz文件", model, servicePath)
 		}
 		var buf bytes.Buffer
-		_ = s.gen.render(serviceTmpl, &buf, ServiceData{
-			StructName: model,
-			ParamName:  str.LowFirstChar(model),
-			ModelPKG:   s.gen.modelPkg,
-			PKG:        pkg,
-		})
-		result, _ := imports.Process(servicePath, buf.Bytes(), nil)
-		_ = os.WriteFile(servicePath, result, os.ModePerm)
-	})
+		if err := s.gen.render(serviceTmpl, &buf, ServiceData{
+			StructName:     model,
+			ParamName:      str.LowFirstChar(model),
+			ModelPKG:       s.gen.modelPkg,
+			RepoPKG:        repoPKG,
+			PKG:            pkg,
+			IDType:         s.gen.modelIDTypes[model],
+			DefaultOrderBy: defaultOrderBy,
+			MaxQuerySize:   maxQuerySize,
+		}); err != nil {
+			return err
+		}
+		result, err := imports.Process(servicePath, buf.Bytes(), nil)
+		if err != nil {
+			return err
+		}
+		if err = os.WriteFile(servicePath, result, 0644); err != nil {
+			return err
+		}
+	}
+	return nil
 }

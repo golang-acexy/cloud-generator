@@ -5,9 +5,9 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
-	"github.com/acexy/golang-toolkit/util/coll"
 	"github.com/acexy/golang-toolkit/util/str"
 	"golang.org/x/tools/imports"
 )
@@ -22,12 +22,17 @@ type RouterGen struct {
 
 type RouterData struct {
 	ModelStructName     string
+	IDType              string
+	WithAuthority       bool
 	ParamName           string
 	PkgName             string
-	AuthorityFetchCode  string
-	DataLimitStructName string
-	GroupPath           string
-	DisableBaseHandler  bool
+	ModelPKG            string
+	BizPKG              string
+	AuthorityFetchCode   string
+	AuthorityStructField string
+	AuthorityColumn      string
+	GroupPath            string
+	DisableBaseHandler   bool
 }
 
 func NewRouterGen(gen *Generator, config map[string]*RouterConfig) *RouterGen {
@@ -37,57 +42,96 @@ func NewRouterGen(gen *Generator, config map[string]*RouterConfig) *RouterGen {
 	}
 }
 
-func (s *RouterGen) Create() {
-	coll.MapForeachAll(s.config, func(structName string, config *RouterConfig) {
+func (s *RouterGen) Create() error {
+	bizPKG := path.Join(s.gen.modelPkg, "biz")
+	if len(s.gen.serviceRelativeModelPath) > 0 {
+		bizPKG = path.Join(append([]string{s.gen.modelPkg}, s.gen.serviceRelativeModelPath...)...)
+	}
+	for structName, config := range s.config {
 		if config.BaseRouter != nil {
+			if len(config.BaseRouter.RelativeModelPath) == 0 {
+				return fmt.Errorf("%w: %s", ErrInvalidRouterPath, structName)
+			}
 			dir := s.gen.baseOutput
 			dir = filepath.Join(append([]string{dir}, config.BaseRouter.RelativeModelPath...)...)
 			pkg := config.BaseRouter.RelativeModelPath[len(config.BaseRouter.RelativeModelPath)-1]
-			_ = os.MkdirAll(dir, os.ModePerm)
 			filePath := filepath.Join(dir, config.BaseRouter.FilePrefix, str.CamelToSnake(str.LowFirstChar(structName))+"_router.go")
+			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+				return err
+			}
 			// 判断文件是否存在
 			if _, err := os.Stat(filePath); err == nil {
 				fmt.Println(structName, "已有base router文件 略过生成")
-				goto R
 			} else {
 				fmt.Println("生成base router文件", structName, filePath)
+				var buf bytes.Buffer
+				if err = s.gen.render(routerImpl, &buf, RouterData{
+					ModelStructName: structName,
+					IDType:          s.gen.modelIDTypes[structName],
+					ParamName:       str.LowFirstChar(structName),
+					PkgName:         pkg,
+					ModelPKG:        s.gen.modelPkg,
+					BizPKG:          bizPKG,
+					GroupPath:       config.BaseRouter.GroupPath,
+				}); err != nil {
+					return err
+				}
+				result, err := imports.Process(filePath, buf.Bytes(), nil)
+				if err != nil {
+					return err
+				}
+				if err = os.WriteFile(filePath, result, 0644); err != nil {
+					return err
+				}
 			}
-			var buf bytes.Buffer
-			_ = s.gen.render(routerImpl, &buf, RouterData{
-				ModelStructName: structName,
-				ParamName:       str.LowFirstChar(structName),
-				PkgName:         pkg,
-				GroupPath:       config.BaseRouter.GroupPath,
-			})
-			result, _ := imports.Process(filePath, buf.Bytes(), nil)
-			_ = os.WriteFile(filePath, result, os.ModePerm)
 		}
-	R:
-		if config.BaseRouterWithDataCheck != nil {
+		if config.BaseRouterWithAuthority != nil {
+			if len(config.BaseRouterWithAuthority.RelativeModelPath) == 0 {
+				return fmt.Errorf("%w: %s", ErrInvalidRouterPath, structName)
+			}
+			if config.BaseRouterWithAuthority.AuthorityFetchCode == "" ||
+				config.BaseRouterWithAuthority.AuthorityStructField == "" ||
+				config.BaseRouterWithAuthority.AuthorityColumn == "" {
+				return fmt.Errorf("%w: %s", ErrInvalidAuthorityConfig, structName)
+			}
 			dir := s.gen.baseOutput
-			dir = filepath.Join(append([]string{dir}, config.BaseRouterWithDataCheck.RelativeModelPath...)...)
-			pkg := config.BaseRouterWithDataCheck.RelativeModelPath[len(config.BaseRouterWithDataCheck.RelativeModelPath)-1]
-			_ = os.MkdirAll(dir, os.ModePerm)
-			filePath := filepath.Join(dir, config.BaseRouterWithDataCheck.FilePrefix, str.CamelToSnake(str.LowFirstChar(structName))+"_router.go")
+			dir = filepath.Join(append([]string{dir}, config.BaseRouterWithAuthority.RelativeModelPath...)...)
+			pkg := config.BaseRouterWithAuthority.RelativeModelPath[len(config.BaseRouterWithAuthority.RelativeModelPath)-1]
+			filePath := filepath.Join(dir, config.BaseRouterWithAuthority.FilePrefix, str.CamelToSnake(str.LowFirstChar(structName))+"_router.go")
+			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+				return err
+			}
 			// 判断文件是否存在
 			if _, err := os.Stat(filePath); err == nil {
-				fmt.Println(structName, "已有router with data limit文件 略过生成")
-				return
+				fmt.Println(structName, "已有权限路由文件 略过生成")
 			} else {
-				fmt.Println("生成router with data limit文件", structName, filePath)
+				fmt.Println("生成权限路由文件", structName, filePath)
+				var buf bytes.Buffer
+				if err = s.gen.render(routerImpl, &buf, RouterData{
+					ModelStructName:      structName,
+					IDType:               s.gen.modelIDTypes[structName],
+					WithAuthority:        true,
+					ParamName:            str.LowFirstChar(structName),
+					PkgName:              pkg,
+					ModelPKG:             s.gen.modelPkg,
+					BizPKG:               bizPKG,
+					GroupPath:             config.BaseRouterWithAuthority.GroupPath,
+					AuthorityStructField: config.BaseRouterWithAuthority.AuthorityStructField,
+					AuthorityColumn:      config.BaseRouterWithAuthority.AuthorityColumn,
+					AuthorityFetchCode:   config.BaseRouterWithAuthority.AuthorityFetchCode,
+					DisableBaseHandler:   config.BaseRouterWithAuthority.DisableBaseHandler,
+				}); err != nil {
+					return err
+				}
+				result, err := imports.Process(filePath, buf.Bytes(), nil)
+				if err != nil {
+					return err
+				}
+				if err = os.WriteFile(filePath, result, 0644); err != nil {
+					return err
+				}
 			}
-			var buf bytes.Buffer
-			_ = s.gen.render(routerImpl, &buf, RouterData{
-				ModelStructName:     structName,
-				ParamName:           str.LowFirstChar(structName),
-				PkgName:             pkg,
-				GroupPath:           config.BaseRouterWithDataCheck.GroupPath,
-				DataLimitStructName: config.BaseRouterWithDataCheck.DataLimitStructName,
-				AuthorityFetchCode:  config.BaseRouterWithDataCheck.AuthorityFetchCode,
-				DisableBaseHandler:  config.BaseRouterWithDataCheck.DisableBaseHandler,
-			})
-			result, _ := imports.Process(filePath, buf.Bytes(), nil)
-			_ = os.WriteFile(filePath, result, os.ModePerm)
 		}
-	})
+	}
+	return nil
 }

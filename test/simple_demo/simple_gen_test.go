@@ -1,6 +1,7 @@
 package test
 
 import (
+	_ "embed"
 	"testing"
 
 	"github.com/golang-acexy/cloud-generator/generatorcloud"
@@ -8,66 +9,58 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestGen(t *testing.T) {
-	db, _ := gorm.Open(mysql.Open("root:root@(127.0.0.1:13306)/test?charset=utf8mb4&parseTime=True&loc=Local"))
-	g := generatorcloud.NewGen(db, "/Users/acexy/Repository/github/golang-acexy/cloud-simple-demo/internal/model", []generatorcloud.TableConfig{
+//go:embed schema.sql
+var schemaSQL string
+
+func TestGenerateCloudSimpleDemo(t *testing.T) {
+	db, err := gorm.Open(mysql.Open("root:root@(127.0.0.1:13306)/test?charset=utf8mb4&parseTime=True&loc=Local&multiStatements=true"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.Exec(schemaSQL).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	generator := generatorcloud.NewGen(db, "/Users/acexy/Repository/github/golang-acexy/cloud-simple-demo/internal/model", []generatorcloud.TableConfig{
 		{
-			TableName: "demo_teacher",
-			ModelName: "Teacher",
+			TableName: "demo_department",
+			ModelName: "Department",
 			Router: &generatorcloud.RouterConfig{
 				BaseRouter: &generatorcloud.BaseRouter{
 					RelativeModelPath: []string{"..", "handler", "rest", "adm"},
-					GroupPath:         "adm/teacher",
+					GroupPath:         "adm/department",
 				},
 			},
 		},
 		{
-			TableName: "demo_student",
-			ModelName: "Student",
+			TableName: "demo_employee",
+			ModelName: "Employee",
 			Router: &generatorcloud.RouterConfig{
 				BaseRouter: &generatorcloud.BaseRouter{
 					RelativeModelPath: []string{"..", "handler", "rest", "adm"},
-					GroupPath:         "adm/student",
+					GroupPath:         "adm/employee",
 				},
-				BaseRouterWithDataCheck: &generatorcloud.BaseRouterWithDataCheck{
+				BaseRouterWithAuthority: &generatorcloud.BaseRouterWithAuthority{
 					BaseRouter: generatorcloud.BaseRouter{
 						RelativeModelPath: []string{"..", "handler", "rest", "usr"},
-						GroupPath:         "usr/student",
+						GroupPath:         "usr/employee",
 					},
-					DataLimitStructName: "UserID",
-					AuthorityFetchCode:  "biz.UsrAuthorityFetch",
-					DisableBaseHandler:  true,
+					AuthorityStructField: "UserID",
+					AuthorityColumn:      "user_id",
+					AuthorityFetchCode:   "biz.UsrAuthorityFetch",
 				},
 			},
 		},
 	})
-	// model基础设置
-	g.SetModelBase(&generatorcloud.ModelBase{
-		DTOExcluded: generatorcloud.ModelDTOExcluded{
-			SaveDTOExcludedFields: []string{
-				"ID",
-				"CreateTime",
-				"UpdateTime",
-			},
-			QueryDTOExcludedFields: []string{
-				"CreateTime",
-				"UpdateTime",
-			},
-			ModifyDTOExcludedFields: []string{
-				"ID",
-				"CreateTime",
-				"UpdateTime",
-			},
-		},
-	})
-	g.SetIncludeModelPkgPath("github.com/golang-acexy/cloud-simple-demo/internal/model")
-
-	g.SetRepoRelativeModelPath([]string{
-		"..", "service", "repo",
-	})
-	g.SetServiceRelativeModelPath([]string{
-		"..", "service", "biz",
+	generator.SetIncludeModelPkgPath("github.com/golang-acexy/cloud-simple-demo/internal/model")
+	generator.SetRepoRelativeModelPath([]string{"..", "service", "repo"})
+	generator.SetServiceRelativeModelPath([]string{"..", "service", "biz"})
+	generator.SetServiceBase(&generatorcloud.ServiceBase{
+		DefaultOrderBy: "id desc",
+		MaxQuerySize:   100,
 	})
 
-	g.Create()
+	if err = generator.Create(); err != nil {
+		t.Fatal(err)
+	}
 }

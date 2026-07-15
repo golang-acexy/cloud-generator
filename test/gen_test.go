@@ -39,5 +39,7 @@ func TestGen(t *testing.T) {
 			},
 		},
 	})
-	g.Create()
+	if err := g.Create(); err != nil {
+		t.Fatal(err)
+	}
 }
