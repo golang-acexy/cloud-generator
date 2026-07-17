@@ -20,6 +20,10 @@ database table
     -> Gin base router
 ```
 
+## Ecosystem Role
+
+The generator is an application-development tool rather than a runtime starter. It converts database schema metadata into code that already follows the current `starter-gorm`, `cloud-database`, `cloud-web`, and `starter-gin` contracts, leaving business-specific extensions to the application.
+
 ## Requirements
 
 - Go 1.25.8 or later
@@ -155,12 +159,13 @@ shared base Repository.
 ### Business Service
 
 The generated service implements `webcloud.BaseBizService` and uses business
-verbs:
+verbs. Its common operations include:
 
-- `Save`
-- `Query`
-- `Modify`
-- `Remove`
+- `Save`, `SaveWithoutZeroFields`, and `SaveBatch`
+- `QueryByID`, `QueryByIDs`, `QueryByCond`, and `QueryPage`
+- `ExistsByID` and `CountByCond`
+- `ModifyByID` and its zero-field or map variants
+- `RemoveByID`, `RemoveByIDs`, and condition variants
 
 `DefaultOrderBy` and `MaxQuerySize` can be configured globally:
 
