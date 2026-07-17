@@ -1,4 +1,4 @@
-// {{.ModelStructName}}SDTO 保存时结构体 限定只允许操作的字段
+// {{.ModelStructName}}SDTO 定义保存操作允许接收的字段。
 type {{.ModelStructName}}SDTO struct {
 {{- range .Fields }}
     {{- if not (call $.IsSExcluded .Name) }}
@@ -7,7 +7,7 @@ type {{.ModelStructName}}SDTO struct {
 {{- end }}
 }
 
-// {{.ModelStructName}}MDTO 修改时结构体 限定只允许操作的字段
+// {{.ModelStructName}}MDTO 定义修改操作允许接收的字段。
 type {{.ModelStructName}}MDTO struct {
 {{- range .Fields }}
     {{- if not (call $.IsMExcluded .Name) }}
@@ -16,7 +16,7 @@ type {{.ModelStructName}}MDTO struct {
 {{- end }}
 }
 
-// {{.ModelStructName}}QDTO 查询时结构体 限定只允许使用的字段
+// {{.ModelStructName}}QDTO 定义查询操作允许接收的字段。
 type {{.ModelStructName}}QDTO struct {
 {{- range .Fields }}
     {{- if not (call $.IsQExcluded .Name) }}
@@ -25,7 +25,7 @@ type {{.ModelStructName}}QDTO struct {
 {{- end }}
 }
 
-// {{.ModelStructName}}DTO 结果结构体 限定只允许展示的字段
+// {{.ModelStructName}}DTO 定义允许返回的字段。
 type {{.ModelStructName}}DTO struct {
 {{- range .Fields }}
     {{- if not (call $.IsDExcluded .Name) }}
@@ -34,106 +34,76 @@ type {{.ModelStructName}}DTO struct {
 {{- end }}
 }
 
-func (v {{.ModelStructName}}) ToDTO() *{{.ModelStructName}}DTO {
+func (v {{.ModelStructName}}) ToDTO() (*{{.ModelStructName}}DTO, error) {
     var dto {{.ModelStructName}}DTO
-    err := copier.Copy(&dto, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-        return nil
+    if err := copier.Copy(&dto, v); err != nil {
+        return nil, err
     }
-    return &dto
+    return &dto, nil
 }
 
-func (v {{.ModelStructName}}) ParseDTO(dto *{{.ModelStructName}}DTO) {
-    err := copier.Copy(dto, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-    }
+func (v {{.ModelStructName}}) ParseDTO(dto *{{.ModelStructName}}DTO) error {
+    return copier.Copy(dto, v)
 }
 
 type {{.ModelStructName}}Slice []*{{.ModelStructName}}
 
-func (v {{.ModelStructName}}Slice) ToDTOs() []*{{.ModelStructName}}DTO {
-    var dtos []*{{.ModelStructName}}DTO
-    err := copier.Copy(&dtos, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-        return nil
+func (v {{.ModelStructName}}Slice) ToDTOs() ([]*{{.ModelStructName}}DTO, error) {
+    dtos := make([]*{{.ModelStructName}}DTO, 0, len(v))
+    if err := copier.Copy(&dtos, v); err != nil {
+        return nil, err
     }
-    return dtos
+    return dtos, nil
 }
 
-func (v {{.ModelStructName}}Slice) ParseDTOs(dtos *[]*{{.ModelStructName}}DTO) {
-    err := copier.Copy(dtos, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-    }
+func (v {{.ModelStructName}}Slice) ParseDTOs(dtos *[]*{{.ModelStructName}}DTO) error {
+    return copier.Copy(dtos, v)
 }
 
-func (v {{.ModelStructName}}SDTO) ToT() *{{.ModelStructName}} {
-    var t {{.ModelStructName}}
-    err := copier.Copy(&t, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-        return nil
+func (v {{.ModelStructName}}SDTO) ToT() (*{{.ModelStructName}}, error) {
+    var entity {{.ModelStructName}}
+    if err := copier.Copy(&entity, v); err != nil {
+        return nil, err
     }
-    return &t
+    return &entity, nil
 }
 
-func (v {{.ModelStructName}}SDTO) ParseT(t *{{.ModelStructName}}) {
-    err := copier.Copy(t, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-    }
+func (v {{.ModelStructName}}SDTO) ParseT(entity *{{.ModelStructName}}) error {
+    return copier.Copy(entity, v)
 }
 
-func (v {{.ModelStructName}}MDTO) ToT() *{{.ModelStructName}} {
-    var t {{.ModelStructName}}
-    err := copier.Copy(&t, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-        return nil
+func (v {{.ModelStructName}}MDTO) ToT() (*{{.ModelStructName}}, error) {
+    var entity {{.ModelStructName}}
+    if err := copier.Copy(&entity, v); err != nil {
+        return nil, err
     }
-    return &t
+    return &entity, nil
 }
 
-func (v {{.ModelStructName}}MDTO) ParseT(t *{{.ModelStructName}}) {
-    err := copier.Copy(t, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-    }
+func (v {{.ModelStructName}}MDTO) ParseT(entity *{{.ModelStructName}}) error {
+    return copier.Copy(entity, v)
 }
 
-func (v {{.ModelStructName}}QDTO) ToT() *{{.ModelStructName}} {
-    var t {{.ModelStructName}}
-    err := copier.Copy(&t, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-        return nil
+func (v {{.ModelStructName}}QDTO) ToT() (*{{.ModelStructName}}, error) {
+    var entity {{.ModelStructName}}
+    if err := copier.Copy(&entity, v); err != nil {
+        return nil, err
     }
-    return &t
+    return &entity, nil
 }
 
-func (v {{.ModelStructName}}QDTO) ParseT(t *{{.ModelStructName}}) {
-    err := copier.Copy(t, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-    }
+func (v {{.ModelStructName}}QDTO) ParseT(entity *{{.ModelStructName}}) error {
+    return copier.Copy(entity, v)
 }
 
-func (v {{.ModelStructName}}DTO) ToT() *{{.ModelStructName}} {
-    var t {{.ModelStructName}}
-    err := copier.Copy(&t, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-        return nil
+func (v {{.ModelStructName}}DTO) ToT() (*{{.ModelStructName}}, error) {
+    var entity {{.ModelStructName}}
+    if err := copier.Copy(&entity, v); err != nil {
+        return nil, err
     }
-    return &t
+    return &entity, nil
 }
 
-func (v {{.ModelStructName}}DTO) ParseT(t *{{.ModelStructName}}) {
-    err := copier.Copy(t, v)
-    if err != nil {
-        logger.Logrus().Errorln("copier.Copy error:", err)
-    }
+func (v {{.ModelStructName}}DTO) ParseT(entity *{{.ModelStructName}}) error {
+    return copier.Copy(entity, v)
 }

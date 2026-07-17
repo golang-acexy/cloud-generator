@@ -1,61 +1,44 @@
 package {{.PKG}}
 
 import (
-	"github.com/golang-acexy/cloud-database/databasecloud.gorm"
+	"github.com/golang-acexy/cloud-database/databasecloud/rds"
 	"github.com/golang-acexy/starter-gorm/gormstarter"
+	"gorm.io/gorm"
 {{- if .Pkg }}
 	"{{ .Pkg }}"
 {{- end }}
 )
 
-var {{.ParamName}}Repo = &{{.StructName}}Repo{
-	Repository: databasecloud.Repository[
-		gormstarter.IBaseMapper[gormstarter.BaseMapper[model.{{.StructName}}], model.{{.StructName}}],
-		gormstarter.BaseMapper[model.{{.StructName}}],
-		model.{{.StructName}},
-	]{
-		Mapper: {{.StructName}}Mapper{},
-	},
-}
-
-func New{{.StructName}}Repo() *{{.StructName}}Repo {
-	return {{.ParamName}}Repo
-}
-
-func (r {{.StructName}}Repo) RawMapper() {{.StructName}}Mapper {
-	return {{.StructName}}Mapper{r.Repository.RawMapper()}
-}
-
-func (r {{.StructName}}Repo) WithTxRepo(tx *gorm.DB) {{.StructName}}Repo {
-	return {{.StructName}}Repo{
-		Repository: r.Repository.WithTxRepo(tx),
-	}
-}
-
-func (r {{.StructName}}Repo) NewTxRepo() {{.StructName}}Repo {
-	return {{.StructName}}Repo{
-		Repository: r.Repository.NewTxRepo(),
-	}
-}
-
 type {{.StructName}}Mapper struct {
 	gormstarter.BaseMapper[model.{{.StructName}}]
 }
-type {{.StructName}}Repo struct {
-	databasecloud.Repository[gormstarter.IBaseMapper[gormstarter.BaseMapper[model.{{.StructName}}],
-		model.{{.StructName}}], gormstarter.BaseMapper[model.{{.StructName}}], model.{{.StructName}}]
+
+func (m {{.StructName}}Mapper) WithTxMapper(tx *gorm.DB) {{.StructName}}Mapper {
+	return {{.StructName}}Mapper{
+		BaseMapper: m.GetBaseMapperWithTx(tx),
+	}
 }
 
-// 在此处拓展自定义Mapper的业务功能
+type {{.StructName}}Repo struct {
+	rds.Repository[{{.StructName}}Repo, {{.StructName}}Mapper, model.{{.StructName}}]
+}
 
-//func (m {{.StructName}}Mapper) MyMapperMethod() {
-//	
-//}
+var {{.ParamName}}Repo = new{{.StructName}}Repo()
 
-// ---------------------------------------
+func new{{.StructName}}Repo() {{.StructName}}Repo {
+	repository := rds.NewRepository(
+		{{.StructName}}Mapper{},
+		func(repository rds.Repository[{{.StructName}}Repo, {{.StructName}}Mapper, model.{{.StructName}}]) {{.StructName}}Repo {
+			return {{.StructName}}Repo{Repository: repository}
+		},
+	)
+	return {{.StructName}}Repo{Repository: repository}
+}
 
-// 在此处拓展自定义Repo的业务功能
+func New{{.StructName}}Repo() {{.StructName}}Repo {
+	return {{.ParamName}}Repo
+}
 
-//func (r {{.StructName}}Repo) MyRepoMethod()  {
-//	
-//}
+// 在此处扩展自定义 Mapper 能力。
+
+// 在此处扩展自定义 Repository 能力。

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 
 	"github.com/acexy/gen"
 	"github.com/acexy/gen/core/generate"
@@ -18,11 +17,23 @@ import (
 )
 
 var defaultFieldOptions = []gen.ModelOpt{
-	gen.FieldTypeReg("^(create_time|update_time|created_at|modified_at|update_at|modified_time)$", "gormstarter.Timestamp"),
+	gen.FieldTypeReg("^(create_time|update_time|created_at|updated_at|modified_at|update_at|modified_time)$", "gormstarter.Timestamp"),
 	gen.FieldGORMTag("ID", func(tag field.GormTag) field.GormTag {
 		tag.Append("primary_key", "<-:false")
 		return tag
 	}),
+}
+
+var databaseGeneratedFields = []string{
+	"ID",
+	"CreatedAt",
+	"CreateTime",
+	"UpdatedAt",
+	"UpdateTime",
+	"ModifiedAt",
+	"UpdateAt",
+	"ModifiedTime",
+	"DeletedAt",
 }
 
 //go:embed tmpl/file/method.gohtml
@@ -56,14 +67,14 @@ func NewModelGen(gen *Generator) *ModelGen {
 	}
 }
 
-func (m *ModelGen) getDBType() string {
+func (m *ModelGen) getDBType() (string, error) {
 	switch m.gen.dBType() {
 	case "mysql":
-		return "gormstarter.DBTypeMySQL"
+		return "gormstarter.DBTypeMySQL", nil
 	case "postgres":
-		return "gormstarter.DBTypePostgres"
+		return "gormstarter.DBTypePostgres", nil
 	default:
-		return "Unknown"
+		return "", ErrUnsupportedDatabase
 	}
 }
 
@@ -76,6 +87,9 @@ func (m *ModelGen) loadSettings() {
 			"primaryKey": nil,
 		},
 		"CreatedAt": {
+			"<-": {"false"},
+		},
+		"UpdatedAt": {
 			"<-": {"false"},
 		},
 		"CreateTime": {
@@ -93,8 +107,11 @@ func (m *ModelGen) loadSettings() {
 		"ModifiedTime": {
 			"<-": {"false"},
 		},
+		"DeletedAt": {
+			"<-": {"false"},
+		},
 	})
-	coll.SliceForeachAll(m.gen.tableConfigs, func(t TableConfig) {
+	coll.SliceForEachAll(m.gen.tableConfigs, func(t TableConfig) {
 		m.gen.rawGen().GenerateModelAs(t.TableName, t.ModelName, defaultFieldOptions...)
 	})
 }
@@ -116,20 +133,37 @@ type DtoData struct {
 }
 
 func changeType(typeStr string) string {
-	matches := regexp.MustCompile(`^gormstarter\.BaseModel\[(.+)]$`).FindStringSubmatch(typeStr)
-	if len(matches) == 2 {
-		return matches[1]
-	} else if typeStr == "gormstarter.Timestamp" {
+	if typeStr == "gormstarter.Timestamp" {
 		return "json.Timestamp"
 	}
 	return typeStr
 }
 
-func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *generate.QueryStructMeta) {
-	file, _ := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+func modelIDType(meta *generate.QueryStructMeta) (string, error) {
+	for _, modelField := range meta.Fields {
+		if modelField.Name == "ID" {
+			idType := changeType(modelField.Type)
+			switch idType {
+			case "int", "uint", "int32", "uint32", "int64", "uint64", "string":
+				return idType, nil
+			default:
+				return "", fmt.Errorf("%w: %s", ErrUnsupportedIDType, idType)
+			}
+		}
+	}
+	// 保持与旧版生成器一致；没有标准 ID 字段的模型仍可由调用方继续扩展。
+	return "int64", nil
+}
+
+func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *generate.QueryStructMeta) error {
+	file, err := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
 	// 移除所有gorm tag
-	coll.SliceForeachAll(meta.Fields, func(field *model.Field) {
+	coll.SliceForEachAll(meta.Fields, func(field *model.Field) {
 		field.GORMTag = nil
 		field.Tag = coll.MapFilterCollect(field.Tag, func(k string, v string) (string, string, bool) {
 			if k != "gorm" {
@@ -140,12 +174,18 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 	})
 
 	// 追加写入接口实现函数 tableName
-	_ = m.gen.render(methodTmpl, file, ModelData{
+	dbType, err := m.getDBType()
+	if err != nil {
+		return err
+	}
+	if err = m.gen.render(methodTmpl, file, ModelData{
 		StructName: modelName,
-		DBType:     m.getDBType(),
-	})
+		DBType:     dbType,
+	}); err != nil {
+		return err
+	}
 
-	coll.SliceForeachAll(meta.Fields, func(field *model.Field) {
+	coll.SliceForEachAll(meta.Fields, func(field *model.Field) {
 		field.Type = changeType(field.Type)
 	})
 
@@ -153,25 +193,31 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 		QueryStructMeta: meta,
 	}
 	config := m.gen.tableConfigsMap[modelName]
-	sExcludedFields := append(m.gen.modelBase.DTOExcluded.SaveDTOExcludedFields, config.DTOExcluded.SaveDTOExcludedFields...)
+	sExcludedFields := append([]string{}, databaseGeneratedFields...)
+	sExcludedFields = append(sExcludedFields, m.gen.modelBase.DTOExcluded.SaveDTOExcludedFields...)
+	sExcludedFields = append(sExcludedFields, config.DTOExcluded.SaveDTOExcludedFields...)
 	if len(sExcludedFields) > 0 {
 		data.SExcludedFields = coll.SliceFilterToMap(sExcludedFields, func(field string) (string, struct{}, bool) {
 			return field, struct{}{}, true
 		})
 	}
-	qExcludedFields := append(m.gen.modelBase.DTOExcluded.QueryDTOExcludedFields, config.DTOExcluded.QueryDTOExcludedFields...)
+	qExcludedFields := append([]string{}, m.gen.modelBase.DTOExcluded.QueryDTOExcludedFields...)
+	qExcludedFields = append(qExcludedFields, config.DTOExcluded.QueryDTOExcludedFields...)
 	if len(qExcludedFields) > 0 {
 		data.QExcludedFields = coll.SliceFilterToMap(qExcludedFields, func(field string) (string, struct{}, bool) {
 			return field, struct{}{}, true
 		})
 	}
-	mExcludedFields := append(m.gen.modelBase.DTOExcluded.ModifyDTOExcludedFields, config.DTOExcluded.ModifyDTOExcludedFields...)
+	mExcludedFields := append([]string{}, databaseGeneratedFields...)
+	mExcludedFields = append(mExcludedFields, m.gen.modelBase.DTOExcluded.ModifyDTOExcludedFields...)
+	mExcludedFields = append(mExcludedFields, config.DTOExcluded.ModifyDTOExcludedFields...)
 	if len(mExcludedFields) > 0 {
 		data.MExcludedFields = coll.SliceFilterToMap(mExcludedFields, func(field string) (string, struct{}, bool) {
 			return field, struct{}{}, true
 		})
 	}
-	dExcludedFields := append(m.gen.modelBase.DTOExcluded.DTOExcludedFields, config.DTOExcluded.DTOExcludedFields...)
+	dExcludedFields := append([]string{}, m.gen.modelBase.DTOExcluded.DTOExcludedFields...)
+	dExcludedFields = append(dExcludedFields, config.DTOExcluded.DTOExcludedFields...)
 	if len(dExcludedFields) > 0 {
 		data.DExcludedFields = coll.SliceFilterToMap(dExcludedFields, func(field string) (string, struct{}, bool) {
 			return field, struct{}{}, true
@@ -194,15 +240,26 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 		return ok
 	}
 	// 追加写入DTO
-	_ = m.gen.render(dtoTmpl, file, data)
+	if err = m.gen.render(dtoTmpl, file, data); err != nil {
+		return err
+	}
+	if err = file.Close(); err != nil {
+		return err
+	}
 
 	// 修改import
-	content, _ := os.ReadFile(outputFile)
-	result, _ := imports.Process(outputFile, content, nil)
-	_ = os.WriteFile(outputFile, result, 0644)
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		return err
+	}
+	result, err := imports.Process(outputFile, content, nil)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(outputFile, result, 0644)
 }
 
-func (m *ModelGen) createRepo(outputFile string, structName string) {
+func (m *ModelGen) createRepo(outputFile string, structName string) error {
 	dir := filepath.Dir(outputFile)
 	var repoPath string
 	var pkg string
@@ -213,49 +270,69 @@ func (m *ModelGen) createRepo(outputFile string, structName string) {
 		dir = filepath.Join(dir, "repo")
 		pkg = "repo"
 	}
-	_ = os.MkdirAll(dir, os.ModePerm)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
 	repoPath = filepath.Join(dir, str.CamelToSnake(str.LowFirstChar(structName))+"_repo.go")
 
 	// 判断文件是否存在
 	if _, err := os.Stat(repoPath); err == nil {
 		fmt.Println(structName, "已有repo文件 略过生成")
-		return
+		return nil
 	} else {
 		fmt.Println("生成repo文件", structName, repoPath)
 	}
 	var buf bytes.Buffer
-	_ = m.gen.render(repoTmpl, &buf, RepoData{
+	if err := m.gen.render(repoTmpl, &buf, RepoData{
 		StructName: structName,
 		ParamName:  str.LowFirstChar(structName),
 		Pkg:        m.gen.modelPkg,
 		PKG:        pkg,
-	})
-	result, _ := imports.Process(repoPath, buf.Bytes(), nil)
-	_ = os.WriteFile(repoPath, result, os.ModePerm)
+	}); err != nil {
+		return err
+	}
+	result, err := imports.Process(repoPath, buf.Bytes(), nil)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(repoPath, result, 0644)
 }
 
-func (m *ModelGen) Create() {
+func (m *ModelGen) Create() error {
 	m.loadSettings()
 	queryGenResult := m.gen.rawGen().ExecuteWithOutInfo()
 	var services []string
 	routers := make(map[string]*RouterConfig)
 
-	coll.MapForeachAll(queryGenResult.Path, func(modelName string, outputFile string) {
-		m.modelAppend(outputFile, modelName, queryGenResult.Meta[modelName])
-		m.createRepo(outputFile, modelName)
+	for modelName, outputFile := range queryGenResult.Path {
 		config := m.gen.getTableConfig(modelName)
+		idType, err := modelIDType(queryGenResult.Meta[modelName])
+		if err != nil && (!config.DisableService || config.Router != nil) {
+			return fmt.Errorf("model %s: %w", modelName, err)
+		}
+		m.gen.modelIDTypes[modelName] = idType
+		if err := m.modelAppend(outputFile, modelName, queryGenResult.Meta[modelName]); err != nil {
+			return err
+		}
+		if err := m.createRepo(outputFile, modelName); err != nil {
+			return err
+		}
 		if !config.DisableService {
 			services = append(services, modelName)
 		}
 		if config.Router != nil {
 			routers[modelName] = config.Router
 		}
-	})
+	}
 	if len(services) > 0 {
-		NewServiceGen(m.gen, services).Create()
+		if err := NewServiceGen(m.gen, services).Create(); err != nil {
+			return err
+		}
 	}
 	if len(routers) > 0 {
-		NewRouterGen(m.gen, routers).Create()
+		if err := NewRouterGen(m.gen, routers).Create(); err != nil {
+			return err
+		}
 	}
-
+	return nil
 }

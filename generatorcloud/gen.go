@@ -1,6 +1,7 @@
 package generatorcloud
 
 import (
+	"fmt"
 	"io"
 	"text/template"
 
@@ -25,15 +26,11 @@ type TableConfig struct {
 
 type ModelBase struct {
 	DTOExcluded ModelDTOExcluded
-	// repo设置
-	RepoRelativeModelPath []string
-	// service设置
-	ServiceConfig *ServiceConfig
 }
 
 type ServiceBase struct {
-	OrderBySQL    string
-	MaxQueryLimit int
+	DefaultOrderBy string
+	MaxQuerySize   int
 }
 
 type ModelDTOExcluded struct {
@@ -50,11 +47,12 @@ type BaseRouter struct {
 	FilePrefix        string
 }
 
-type BaseRouterWithDataCheck struct {
+type BaseRouterWithAuthority struct {
 	BaseRouter
-	AuthorityFetchCode  string
-	DataLimitStructName string
-	DisableBaseHandler  bool
+	AuthorityFetchCode   string
+	AuthorityStructField string
+	AuthorityColumn      string
+	DisableBaseHandler   bool
 }
 
 type Generator struct {
@@ -72,13 +70,15 @@ type Generator struct {
 	tableConfigs []TableConfig
 	// key为modelName
 	tableConfigsMap map[string]TableConfig
+	// key 为模型名，值为模型主键的 Go 类型。
+	modelIDTypes map[string]string
 }
 
 type RouterConfig struct {
 	// 不带权限控制的基础路由
 	BaseRouter *BaseRouter
 	// 带权限控制的基础路由
-	BaseRouterWithDataCheck *BaseRouterWithDataCheck
+	BaseRouterWithAuthority *BaseRouterWithAuthority
 }
 
 func NewGen(db *gorm.DB, baseRootPath string, tableConfigs []TableConfig) *Generator {
@@ -87,8 +87,10 @@ func NewGen(db *gorm.DB, baseRootPath string, tableConfigs []TableConfig) *Gener
 		tableConfigsMap: coll.SliceFilterToMap(tableConfigs, func(tableConfig TableConfig) (string, TableConfig, bool) {
 			return tableConfig.ModelName, tableConfig, true
 		}),
-		baseOutput: baseRootPath,
-		db:         db,
+		baseOutput:   baseRootPath,
+		db:           db,
+		modelBase:    &ModelBase{},
+		modelIDTypes: make(map[string]string),
 	}
 	g := gen.NewGenerator(gen.Config{
 		OutPath: baseRootPath,
@@ -105,6 +107,10 @@ func (g *Generator) getTableConfig(modelName string) TableConfig {
 
 // SetModelBase 设置model的基础信息
 func (g *Generator) SetModelBase(base *ModelBase) {
+	if base == nil {
+		g.modelBase = &ModelBase{}
+		return
+	}
 	g.modelBase = base
 }
 
@@ -133,6 +139,9 @@ func (g *Generator) rawGen() *gen.Generator {
 }
 
 func (g *Generator) dBType() string {
+	if g.db == nil {
+		return "unknown"
+	}
 	switch g.db.Dialector.(type) {
 	case *mysql.Dialector:
 		return "mysql"
@@ -156,6 +165,16 @@ type DBTypeData struct {
 	DBType     string
 }
 
-func (g *Generator) Create() {
-	NewModelGen(g).Create()
+func (g *Generator) Create() error {
+	if g.modelPkg == "" {
+		return ErrModelPackageRequired
+	}
+	if g.dBType() == "unknown" {
+		var dialector any
+		if g.db != nil {
+			dialector = g.db.Dialector
+		}
+		return fmt.Errorf("%w: %T", ErrUnsupportedDatabase, dialector)
+	}
+	return NewModelGen(g).Create()
 }

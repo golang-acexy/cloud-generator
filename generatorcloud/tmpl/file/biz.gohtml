@@ -2,189 +2,297 @@ package {{.PKG}}
 
 import (
     "{{.ModelPKG}}"
+    repo "{{.RepoPKG}}"
+    "github.com/golang-acexy/cloud-database/databasecloud"
+    "github.com/golang-acexy/cloud-database/databasecloud/rds"
     "github.com/golang-acexy/cloud-web/webcloud"
-    "gorm.io/gorm"
 )
 
-var {{.ParamName}}BizService = &{{.StructName}}BizService[int64, model.{{.StructName}}SDTO, model.{{.StructName}}MDTO, model.{{.StructName}}QDTO, model.{{.StructName}}DTO]{
+var {{.ParamName}}BizService = &{{.StructName}}BizService{
     repo: repo.New{{.StructName}}Repo(),
 }
 
-func New{{.StructName}}BizService() *{{.StructName}}BizService[int64, model.{{.StructName}}SDTO, model.{{.StructName}}MDTO, model.{{.StructName}}QDTO, model.{{.StructName}}DTO] {
+func New{{.StructName}}BizService() *{{.StructName}}BizService {
     return {{.ParamName}}BizService
 }
 
-type {{.StructName}}BizService[ID webcloud.IDType, S, M, Q, D any] struct {
-    repo *repo.{{.StructName}}Repo
+type {{.StructName}}BizService struct {
+    repo repo.{{.StructName}}Repo
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) MaxQueryCount() int {
-    return 500
+func (v *{{.StructName}}BizService) MaxQuerySize() int {
+    return {{.MaxQuerySize}}
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) DefaultOrderBySQL() string {
-    return "id desc"
+func (v *{{.StructName}}BizService) DefaultOrderBy() string {
+    return {{printf "%q" .DefaultOrderBy}}
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) Save(save *model.{{.StructName}}SDTO) (int64, error) {
+func (v *{{.StructName}}BizService) Save(save *model.{{.StructName}}SDTO) ({{.IDType}}, error) {
     if save == nil {
-        return 0, nil
+        return 0, webcloud.ErrBadRequestParameters
     }
-    var t = save.ToT()
-    _, err := v.repo.SaveExcludeZeroField(t)
+    entity, err := save.ToT()
     if err != nil {
         return 0, err
     }
-    return t.ID, nil
+    if _, err = v.repo.Save(entity); err != nil {
+        return 0, err
+    }
+    return entity.ID, nil
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseQueryByID(condition map[string]any, result *model.{{.StructName}}DTO) (row int64, err error) {
-    var r model.{{.StructName}}
-    row, err = v.repo.QueryOneByMap(condition, &r)
-    if row > 0 {
-        r.ParseDTO(result)
+func (v *{{.StructName}}BizService) SaveWithoutZeroFields(save *model.{{.StructName}}SDTO) ({{.IDType}}, error) {
+    if save == nil {
+        return 0, webcloud.ErrBadRequestParameters
     }
-    return
+    entity, err := save.ToT()
+    if err != nil {
+        return 0, err
+    }
+    if _, err = v.repo.SaveWithoutZeroFields(entity); err != nil {
+        return 0, err
+    }
+    return entity.ID, nil
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseQueryOne(condition map[string]any, result *model.{{.StructName}}DTO) (row int64, err error) {
-    var r model.{{.StructName}}
-    row, err = v.repo.QueryOneByMap(condition, &r)
-    if row > 0 {
-        r.ParseDTO(result)
+func (v *{{.StructName}}BizService) SaveBatch(saves []*model.{{.StructName}}SDTO) ([]{{.IDType}}, error) {
+    if len(saves) == 0 {
+        return make([]{{.IDType}}, 0), nil
     }
-    return
+    entities := make([]*model.{{.StructName}}, 0, len(saves))
+    for _, save := range saves {
+        if save == nil {
+            return nil, webcloud.ErrBadRequestParameters
+        }
+        entity, err := save.ToT()
+        if err != nil {
+            return nil, err
+        }
+        entities = append(entities, entity)
+    }
+    if _, err := v.repo.SaveBatch(entities); err != nil {
+        return nil, err
+    }
+    ids := make([]{{.IDType}}, len(entities))
+    for index, entity := range entities {
+        ids[index] = entity.ID
+    }
+    return ids, nil
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseQuery(condition map[string]any, result *[]*model.{{.StructName}}DTO) (row int64, err error) {
-    var r []*model.{{.StructName}}
-    row, err = v.repo.QueryByGorm(&r, func(db *gorm.DB) {
-        db.Where(condition).Order(v.DefaultOrderBySQL()).Limit(v.MaxQueryCount()).Scan(&r)
-    })
-    if row > 0 {
-        model.{{.StructName}}Slice(r).ParseDTOs(result)
+func (v *{{.StructName}}BizService) BaseQueryByID(condition map[string]any) (*model.{{.StructName}}DTO, error) {
+    var entity model.{{.StructName}}
+    row, err := v.repo.QueryOneByMap(condition, &entity)
+    if err != nil || row == 0 {
+        return nil, err
     }
-    return
+    return entity.ToDTO()
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseQueryByPager(condition map[string]any, pager *webcloud.Pager[model.{{.StructName}}DTO]) error {
-    p := databasecloud.Pager[model.{{.StructName}}]{
-        Number: pager.Number,
-        Size:   pager.Size,
+func (v *{{.StructName}}BizService) BaseQueryOne(condition map[string]any) (*model.{{.StructName}}DTO, error) {
+    var entity model.{{.StructName}}
+    row, err := v.repo.QueryOneByMap(condition, &entity)
+    if err != nil || row == 0 {
+        return nil, err
     }
-    err := v.repo.QueryPageByMap(condition, v.DefaultOrderBySQL(), &p)
+    return entity.ToDTO()
+}
+
+func (v *{{.StructName}}BizService) BaseQuery(condition map[string]any) ([]*model.{{.StructName}}DTO, error) {
+    entities := make([]*model.{{.StructName}}, 0)
+    db := v.repo.TableGormDB()
+    err := db.Where(condition).Order(v.DefaultOrderBy()).Limit(v.MaxQuerySize()).Scan(&entities).Error
+    if err != nil {
+        return nil, err
+    }
+    return model.{{.StructName}}Slice(entities).ToDTOs()
+}
+
+func (v *{{.StructName}}BizService) BaseQueryPage(condition map[string]any, pager *webcloud.Pager[model.{{.StructName}}DTO]) error {
+    countDB := v.repo.TableGormDB()
+    if err := countDB.Where(condition).Count(&pager.Total).Error; err != nil || pager.Total == 0 {
+        return err
+    }
+    entities := make([]*model.{{.StructName}}, 0, pager.Size)
+    pageDB := v.repo.TableGormDB()
+    if err := pageDB.Where(condition).
+        Order(v.DefaultOrderBy()).
+        Limit(pager.Size).
+        Offset((pager.Number - 1) * pager.Size).
+        Scan(&entities).Error; err != nil {
+        return err
+    }
+    records, err := model.{{.StructName}}Slice(entities).ToDTOs()
     if err != nil {
         return err
     }
-    pager.Records = model.{{.StructName}}Slice(p.Records).ToDTOs()
-    pager.Total = p.Total
+    pager.Records = records
     return nil
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseModifyByID(update, condition map[string]any) (int64, error) {
+func (v *{{.StructName}}BizService) BaseModifyByID(update, condition map[string]any) (int64, error) {
     return v.repo.ModifyByMap(update, condition)
 }
 
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) BaseRemoveByID(condition map[string]any) (int64, error) {
+func (v *{{.StructName}}BizService) BaseRemoveByID(condition map[string]any) (int64, error) {
     return v.repo.RemoveByMap(condition)
 }
 
-// QueryByID 通过主键查询
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryByID(id ID) *model.{{.StructName}}DTO {
-	var r model.{{.StructName}}
-	row, err := v.repo.QueryByID(id, &r)
-	if row > 0 && err == nil {
-		return r.ToDTO()
-	}
-	return nil
-}
-
-// QueryOneByCond 通过条件查询一条数据
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryOneByCond(condition *model.{{.StructName}}QDTO) *model.{{.StructName}}DTO {
-    if condition == nil {
-        return nil
+func (v *{{.StructName}}BizService) QueryByID(id {{.IDType}}) (*model.{{.StructName}}DTO, error) {
+    var entity model.{{.StructName}}
+    row, err := v.repo.QueryByID(id, &entity)
+    if err != nil || row == 0 {
+        return nil, err
     }
-	var r model.{{.StructName}}
-	row, err := v.repo.QueryOneByCond(condition.ToT(), &r)
-	if row > 0 && err == nil {
-		return r.ToDTO()
-	}
-	return nil
+    return entity.ToDTO()
 }
 
-// QueryByCond 通过条件查询多条数据
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryByCond(condition *model.{{.StructName}}QDTO) []*model.{{.StructName}}DTO {
-    if condition == nil {
-        return nil
+func (v *{{.StructName}}BizService) QueryByIDs(ids []{{.IDType}}) ([]*model.{{.StructName}}DTO, error) {
+    if len(ids) == 0 {
+        return make([]*model.{{.StructName}}DTO, 0), nil
     }
-	var rs []*model.{{.StructName}}
-	row, err := v.repo.QueryByCond(condition.ToT(), v.DefaultOrderBySQL(), &rs)
-	if row > 0 && err == nil {
-		return model.{{.StructName}}Slice(rs).ToDTOs()
-	}
-	return nil
+    queryIDs := make([]any, len(ids))
+    for index, id := range ids {
+        queryIDs[index] = id
+    }
+    entities := make([]*model.{{.StructName}}, 0, len(ids))
+    if _, err := v.repo.QueryByIDs(queryIDs, &entities); err != nil {
+        return nil, err
+    }
+    return model.{{.StructName}}Slice(entities).ToDTOs()
 }
 
-// QueryByPager 分页查询
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) QueryByPager(pager webcloud.PagerDTO[model.{{.StructName}}QDTO]) webcloud.Pager[model.{{.StructName}}DTO] {
-	p := databasecloud.Pager[model.{{.StructName}}]{
-		Number: pager.Number,
-		Size:   pager.Size,
-	}
-	r := webcloud.Pager[model.{{.StructName}}DTO]{
-		Number: pager.Number,
-		Size:   pager.Size,
-	}
-	err := v.repo.QueryPageByCond(pager.Condition.ToT(), v.DefaultOrderBySQL(), &p)
-	if err == nil {
-		r.Total = p.Total
-		r.Records = model.{{.StructName}}Slice(p.Records).ToDTOs()
-	}
-	return r
+func (v *{{.StructName}}BizService) ExistsByID(id {{.IDType}}) (bool, error) {
+    return v.repo.ExistsByID(id)
 }
 
-// ModifyByID 根据主键修改数据
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByID(updated *model.{{.StructName}}MDTO) bool {
+func (v *{{.StructName}}BizService) QueryOneByCond(condition *model.{{.StructName}}QDTO) (*model.{{.StructName}}DTO, error) {
+    if condition == nil {
+        return nil, webcloud.ErrBadRequestParameters
+    }
+    entityCondition, err := condition.ToT()
+    if err != nil {
+        return nil, err
+    }
+    var entity model.{{.StructName}}
+    row, err := v.repo.QueryOneByCond(entityCondition, &entity)
+    if err != nil || row == 0 {
+        return nil, err
+    }
+    return entity.ToDTO()
+}
+
+func (v *{{.StructName}}BizService) QueryByCond(condition *model.{{.StructName}}QDTO) ([]*model.{{.StructName}}DTO, error) {
+    if condition == nil {
+        return nil, webcloud.ErrBadRequestParameters
+    }
+    entityCondition, err := condition.ToT()
+    if err != nil {
+        return nil, err
+    }
+    entities := make([]*model.{{.StructName}}, 0)
+    if _, err = v.repo.QueryByCond(entityCondition, v.DefaultOrderBy(), &entities); err != nil {
+        return nil, err
+    }
+    return model.{{.StructName}}Slice(entities).ToDTOs()
+}
+
+func (v *{{.StructName}}BizService) CountByCond(condition *model.{{.StructName}}QDTO) (int64, error) {
+    if condition == nil {
+        return 0, webcloud.ErrBadRequestParameters
+    }
+    entityCondition, err := condition.ToT()
+    if err != nil {
+        return 0, err
+    }
+    return v.repo.CountByCond(entityCondition)
+}
+
+func (v *{{.StructName}}BizService) QueryPage(pager webcloud.PagerDTO[model.{{.StructName}}QDTO]) (webcloud.Pager[model.{{.StructName}}DTO], error) {
+    condition, err := pager.Condition.ToT()
+    if err != nil {
+        return webcloud.Pager[model.{{.StructName}}DTO]{}, err
+    }
+    page := databasecloud.Pager[model.{{.StructName}}]{
+        Number: pager.Number,
+        Size:   pager.Size,
+    }
+    if err = v.repo.QueryPageByCond(condition, rds.PageQuery{OrderBySQL: v.DefaultOrderBy()}, &page); err != nil {
+        return webcloud.Pager[model.{{.StructName}}DTO]{}, err
+    }
+    records, err := model.{{.StructName}}Slice(page.Records).ToDTOs()
+    if err != nil {
+        return webcloud.Pager[model.{{.StructName}}DTO]{}, err
+    }
+    return webcloud.Pager[model.{{.StructName}}DTO]{
+        Records: records,
+        Total:   page.Total,
+        Number:  page.Number,
+        Size:    page.Size,
+    }, nil
+}
+
+func (v *{{.StructName}}BizService) ModifyByID(id {{.IDType}}, updated *model.{{.StructName}}MDTO) (int64, error) {
     if updated == nil {
-        return false
+        return 0, webcloud.ErrBadRequestParameters
     }
-	row, err := v.repo.ModifyByID(updated.ToT())
-	return row > 0 && err == nil
+    entity, err := updated.ToT()
+    if err != nil {
+        return 0, err
+    }
+    entity.ID = id
+    return v.repo.ModifyByID(entity)
 }
 
-// ModifyByIDExcludeZeroField 根据主键修改数据 不包括零值数据
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByIDExcludeZeroField(updated *model.{{.StructName}}MDTO) bool {
+func (v *{{.StructName}}BizService) ModifyByIDWithoutZeroFields(id {{.IDType}}, updated *model.{{.StructName}}MDTO) (int64, error) {
     if updated == nil {
-        return false
+        return 0, webcloud.ErrBadRequestParameters
     }
-	row, err := v.repo.ModifyByIDExcludeZeroField(updated.ToT())
-	return row > 0 && err == nil
+    entity, err := updated.ToT()
+    if err != nil {
+        return 0, err
+    }
+    entity.ID = id
+    return v.repo.ModifyByIDWithoutZeroFields(entity)
 }
 
-// ModifyByIdUseMap 根据主键修改数据 使用map
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) ModifyByIdUseMap(updated map[string]any, id ID) bool {
-	row, err := v.repo.ModifyByIdUseMap(updated, id)
-	return row > 0 && err == nil
+func (v *{{.StructName}}BizService) ModifyByIDWithMap(id {{.IDType}}, updated map[string]any) (int64, error) {
+    if len(updated) == 0 {
+        return 0, webcloud.ErrBadRequestParameters
+    }
+    return v.repo.ModifyByIDWithMap(updated, id)
 }
 
-// RemoveByID 根据主键删除数据
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) RemoveByID(id ID) bool {
-	row, err := v.repo.RemoveByID(id)
-	return row > 0 && err == nil
+func (v *{{.StructName}}BizService) RemoveByID(id {{.IDType}}) (int64, error) {
+    return v.repo.RemoveByID(id)
 }
 
+func (v *{{.StructName}}BizService) RemoveByIDs(ids []{{.IDType}}) (int64, error) {
+    if len(ids) == 0 {
+        return 0, nil
+    }
+    removeIDs := make([]any, len(ids))
+    for index, id := range ids {
+        removeIDs[index] = id
+    }
+    return v.repo.RemoveByIDs(removeIDs)
+}
 
-// RemoveByCond 根据条件删除数据
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) RemoveByCond(condition *model.{{.StructName}}DTO) bool {
+func (v *{{.StructName}}BizService) RemoveByCond(condition *model.{{.StructName}}QDTO) (int64, error) {
     if condition == nil {
-        return false
+        return 0, webcloud.ErrBadRequestParameters
     }
-	row, err := v.repo.RemoveByCond(condition.ToT())
-	return row > 0 && err == nil
+    entity, err := condition.ToT()
+    if err != nil {
+        return 0, err
+    }
+    return v.repo.RemoveByCond(entity)
 }
 
-// RemoveByMap 根据条件删除数据
-func (v *{{.StructName}}BizService[ID, S, M, Q, D]) RemoveByMap(condition map[string]any) bool {
-	row, err := v.repo.RemoveByMap(condition)
-	return row > 0 && err == nil
+func (v *{{.StructName}}BizService) RemoveByMap(condition map[string]any) (int64, error) {
+    if len(condition) == 0 {
+        return 0, webcloud.ErrBadRequestParameters
+    }
+    return v.repo.RemoveByMap(condition)
 }

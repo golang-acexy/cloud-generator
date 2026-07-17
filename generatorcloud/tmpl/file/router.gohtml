@@ -1,49 +1,49 @@
 package {{.PkgName}}
 
 import (
+    model "{{.ModelPKG}}"
+    biz "{{.BizPKG}}"
     "github.com/golang-acexy/cloud-web/webcloud"
     "github.com/golang-acexy/starter-gin/ginstarter"
 )
 
-var {{.ParamName}}Router = func() *{{.ModelStructName}}Router[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO] {
-    var bizService = biz.New{{.ModelStructName}}BizService()
-
-    return &{{.ModelStructName}}Router[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]{
-    {{- if .AuthorityFetchCode }}
-        BaseRouter: webcloud.NewBaseRouterWithAuthority[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO](bizService, {{.AuthorityFetchCode}}, "{{.DataLimitStructName}}"),
+var {{.ParamName}}Router = func() *{{.ModelStructName}}Router {
+    bizService := biz.New{{.ModelStructName}}BizService()
+    return &{{.ModelStructName}}Router{
+    {{- if .WithAuthority }}
+        BaseRouter: webcloud.NewBaseRouterWithAuthority[{{.IDType}}, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO](
+            bizService,
+            {{.AuthorityFetchCode}},
+            webcloud.AuthorityDataField{
+                StructField: "{{.AuthorityStructField}}",
+                Column:      "{{.AuthorityColumn}}",
+            },
+        ),
     {{- else }}
-        BaseRouter: webcloud.NewBaseRouter[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO](bizService),
+        BaseRouter: webcloud.NewBaseRouter[{{.IDType}}, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO](bizService),
     {{- end }}
         bizService: bizService,
     }
 }()
 
-func New{{.ModelStructName}}Router() *{{.ModelStructName}}Router[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO] {
+func New{{.ModelStructName}}Router() *{{.ModelStructName}}Router {
     return {{.ParamName}}Router
 }
 
-type {{.ModelStructName}}Router[ID webcloud.IDType, S, M, Q, D any] struct {
-    *webcloud.BaseRouter[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]
-    bizService *biz.{{.ModelStructName}}BizService[int64, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]
+type {{.ModelStructName}}Router struct {
+    *webcloud.BaseRouter[{{.IDType}}, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]
+    bizService *biz.{{.ModelStructName}}BizService
 }
 
-func (u *{{.ModelStructName}}Router[ID, S, M, Q, D]) Info() *ginstarter.RouterInfo {
+func (r *{{.ModelStructName}}Router) Info() *ginstarter.RouterInfo {
     return &ginstarter.RouterInfo{
         GroupPath: "{{.GroupPath}}",
     }
 }
-{{- if not .DisableBaseHandler }}
-func (u *{{.ModelStructName}}Router[ID, S, M, Q, D]) registerBaseHandler(router *ginstarter.RouterWrapper) {
-    u.BaseRouter.RegisterBaseHandler(router, u.BaseRouter)
-}
-{{- end }}
 
-func (u *{{.ModelStructName}}Router[ID, S, M, Q, D]) Handlers(router *ginstarter.RouterWrapper) {
+func (r *{{.ModelStructName}}Router) Handlers(router *ginstarter.RouterWrapper) {
 {{- if not .DisableBaseHandler }}
-    // 注册基础路由
-    u.registerBaseHandler(router)
+    r.RegisterBaseHandlers(router)
 {{- end }}
-    // 自定义路由业务
+    // 在此处注册自定义业务路由。
 }
-
-// 自定义路由业务
