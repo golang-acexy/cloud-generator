@@ -232,7 +232,10 @@ func (r EmployeeRepo) CountByDepartmentID(id int64) (int64, error) {
 ```
 
 The same pattern can extend generated business services and routers. Generated
-router files contain a registration point for custom handlers.
+router files pass the concrete router to `RegisterBaseHandlers`, so a custom
+router method with the same signature overrides the embedded `BaseRouter`
+handler while all other handlers retain their default implementations. They
+also contain a registration point for additional custom handlers.
 
 Repository, business service, and router files are skipped when they already
 exist, which preserves manual extensions. Model files are owned by the model
