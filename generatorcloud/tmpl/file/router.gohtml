@@ -43,7 +43,7 @@ func (r *{{.ModelStructName}}Router) Info() *ginstarter.RouterInfo {
 
 func (r *{{.ModelStructName}}Router) Handlers(router *ginstarter.RouterWrapper) {
 {{- if not .DisableBaseHandler }}
-    r.RegisterBaseHandlers(router)
+    r.RegisterBaseHandlers(router, r)
 {{- end }}
     // 在此处注册自定义业务路由。
 }
