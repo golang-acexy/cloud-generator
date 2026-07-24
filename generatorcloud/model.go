@@ -17,11 +17,23 @@ import (
 )
 
 var defaultFieldOptions = []gen.ModelOpt{
+	fieldTypeBySourceType("time.Time", "gormstarter.Timestamp"),
 	gen.FieldTypeReg("^(create_time|update_time|created_at|updated_at|modified_at|update_at|modified_time)$", "gormstarter.Timestamp"),
 	gen.FieldGORMTag("ID", func(tag field.GormTag) field.GormTag {
 		tag.Append("primary_key", "<-:false")
 		return tag
 	}),
+}
+
+// fieldTypeBySourceType 按生成器推导出的 Go 类型替换模型字段类型。
+// 数据库的 DATE、DATETIME、TIMESTAMP 会由生成器映射为 time.Time，统一改为框架时间类型。
+func fieldTypeBySourceType(sourceType, targetType string) model.ModifyFieldOpt {
+	return func(field *model.Field) *model.Field {
+		if field.Type == sourceType {
+			field.Type = targetType
+		}
+		return field
+	}
 }
 
 var databaseGeneratedFields = []string{
