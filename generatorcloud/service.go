@@ -21,14 +21,16 @@ type ServiceGen struct {
 }
 
 type ServiceData struct {
-	StructName     string
-	ParamName      string
-	ModelPKG       string
-	RepoPKG        string
-	PKG            string
-	IDType         string
-	DefaultOrderBy string
-	MaxQuerySize   int
+	StructName              string
+	ParamName               string
+	ModelPKG                string
+	RepoPKG                 string
+	PKG                     string
+	IDType                  string
+	DefaultOrderBy          string
+	MaxQuerySize            int
+	DefaultTimeRangeField   string
+	AllowedTimeRangeFields []string
 }
 
 func NewServiceGen(gen *Generator, models []string) *ServiceGen {
@@ -77,14 +79,16 @@ func (s *ServiceGen) Create() error {
 		}
 		var buf bytes.Buffer
 		if err := s.gen.render(serviceTmpl, &buf, ServiceData{
-			StructName:     model,
-			ParamName:      str.LowFirstChar(model),
-			ModelPKG:       s.gen.modelPkg,
-			RepoPKG:        repoPKG,
-			PKG:            pkg,
-			IDType:         s.gen.modelIDTypes[model],
-			DefaultOrderBy: defaultOrderBy,
-			MaxQuerySize:   maxQuerySize,
+			StructName:              model,
+			ParamName:               str.LowFirstChar(model),
+			ModelPKG:                s.gen.modelPkg,
+			RepoPKG:                 repoPKG,
+			PKG:                     pkg,
+			IDType:                  s.gen.modelIDTypes[model],
+			DefaultOrderBy:          defaultOrderBy,
+			MaxQuerySize:            maxQuerySize,
+			DefaultTimeRangeField:   s.gen.modelBase.DefaultTimeRangeField,
+			AllowedTimeRangeFields: s.gen.modelBase.AllowedTimeRangeFields,
 		}); err != nil {
 			return err
 		}

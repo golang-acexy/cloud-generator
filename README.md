@@ -70,6 +70,10 @@ generator := generatorcloud.NewGen(
 generator.SetIncludeModelPkgPath(
     "github.com/example/cloud-app/internal/model",
 )
+generator.SetModelBase(&generatorcloud.ModelBase{
+    DefaultTimeRangeField:  "created_at",
+    AllowedTimeRangeFields: []string{"created_at", "updated_at"},
+})
 generator.SetRepoRelativeModelPath(
     []string{"..", "service", "repo"},
 )
@@ -85,6 +89,11 @@ if err = generator.Create(); err != nil {
 `SetIncludeModelPkgPath` must contain the Go import path of the generated model
 package. Repository, service, and router imports are derived from this path and
 their configured relative paths; they are never guessed by `goimports`.
+
+`SetModelBase` must configure a non-empty default time-range field and allowed
+field list. The default must be present in the allowed list. Names are normalized
+to snake case and apply to every model produced by the generator run, so this
+configuration is best suited to shared audit columns.
 
 ## Generated Output
 
@@ -176,8 +185,11 @@ generator.SetServiceBase(&generatorcloud.ServiceBase{
 })
 ```
 
-Base list and page queries use separate table-scoped GORM sessions. Empty base
-query conditions are supported, while unsafe empty update and delete
+Generated typed conditions use value semantics. Single results use `*T`, and
+multiple results use `*[]*T`. Generated page methods validate and convert
+`webcloud.TimeRange` values to `gormstarter.TimeRange`, then delegate count,
+ordering, limit, offset, and data loading to the Repository pagination methods.
+Empty base query conditions are supported, while unsafe empty update and delete
 conditions remain rejected by the Repository layer.
 
 ## Authority-Aware Routers
