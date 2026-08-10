@@ -22,6 +22,8 @@ func TestGen(t *testing.T) {
 	})
 	g.SetIncludeModelPkgPath("github.com/golang-acexy/cloud-generator/test/model")
 	g.SetModelBase(&generatorcloud.ModelBase{
+		DefaultTimeRangeField:  "created_at",
+		AllowedTimeRangeFields: []string{"created_at", "updated_at"},
 		DTOExcluded: generatorcloud.ModelDTOExcluded{
 			SaveDTOExcludedFields: []string{
 				"ID",

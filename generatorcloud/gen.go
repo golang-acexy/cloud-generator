@@ -7,6 +7,7 @@ import (
 
 	"github.com/acexy/gen"
 	"github.com/acexy/golang-toolkit/util/coll"
+	"github.com/acexy/golang-toolkit/util/str"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -25,7 +26,9 @@ type TableConfig struct {
 }
 
 type ModelBase struct {
-	DTOExcluded ModelDTOExcluded
+	DTOExcluded            ModelDTOExcluded
+	DefaultTimeRangeField  string
+	AllowedTimeRangeFields []string
 }
 
 type ServiceBase struct {
@@ -169,6 +172,9 @@ func (g *Generator) Create() error {
 	if g.modelPkg == "" {
 		return ErrModelPackageRequired
 	}
+	if err := g.validateTimeRangeConfig(); err != nil {
+		return err
+	}
 	if g.dBType() == "unknown" {
 		var dialector any
 		if g.db != nil {
@@ -177,4 +183,21 @@ func (g *Generator) Create() error {
 		return fmt.Errorf("%w: %T", ErrUnsupportedDatabase, dialector)
 	}
 	return NewModelGen(g).Create()
+}
+
+// validateTimeRangeConfig 校验生成代码所必需的时间范围字段配置。
+func (g *Generator) validateTimeRangeConfig() error {
+	defaultField := str.CamelToSnake(g.modelBase.DefaultTimeRangeField)
+	if defaultField == "" || len(g.modelBase.AllowedTimeRangeFields) == 0 {
+		return ErrTimeRangeConfigRequired
+	}
+	allowedFields := coll.SliceCollect(g.modelBase.AllowedTimeRangeFields, func(field string) string {
+		return str.CamelToSnake(field)
+	})
+	if !coll.SliceContains(allowedFields, defaultField) {
+		return ErrDefaultTimeRangeFieldNotAllowed
+	}
+	g.modelBase.DefaultTimeRangeField = defaultField
+	g.modelBase.AllowedTimeRangeFields = allowedFields
+	return nil
 }

@@ -21,13 +21,13 @@ type RouterGen struct {
 }
 
 type RouterData struct {
-	ModelStructName     string
-	IDType              string
-	WithAuthority       bool
-	ParamName           string
-	PkgName             string
-	ModelPKG            string
-	BizPKG              string
+	ModelStructName      string
+	IDType               string
+	WithAuthority        bool
+	ParamName            string
+	PkgName              string
+	ModelPKG             string
+	BizPKG               string
 	AuthorityFetchCode   string
 	AuthorityStructField string
 	AuthorityColumn      string
@@ -115,7 +115,7 @@ func (s *RouterGen) Create() error {
 					PkgName:              pkg,
 					ModelPKG:             s.gen.modelPkg,
 					BizPKG:               bizPKG,
-					GroupPath:             config.BaseRouterWithAuthority.GroupPath,
+					GroupPath:            config.BaseRouterWithAuthority.GroupPath,
 					AuthorityStructField: config.BaseRouterWithAuthority.AuthorityStructField,
 					AuthorityColumn:      config.BaseRouterWithAuthority.AuthorityColumn,
 					AuthorityFetchCode:   config.BaseRouterWithAuthority.AuthorityFetchCode,

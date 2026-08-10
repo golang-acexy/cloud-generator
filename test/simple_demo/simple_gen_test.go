@@ -53,6 +53,10 @@ func TestGenerateCloudSimpleDemo(t *testing.T) {
 		},
 	})
 	generator.SetIncludeModelPkgPath("github.com/golang-acexy/cloud-simple-demo/internal/model")
+	generator.SetModelBase(&generatorcloud.ModelBase{
+		DefaultTimeRangeField:  "created_at",
+		AllowedTimeRangeFields: []string{"created_at", "updated_at"},
+	})
 	generator.SetRepoRelativeModelPath([]string{"..", "service", "repo"})
 	generator.SetServiceRelativeModelPath([]string{"..", "service", "biz"})
 	generator.SetServiceBase(&generatorcloud.ServiceBase{
