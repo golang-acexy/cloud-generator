@@ -159,7 +159,15 @@ The generated Repository preserves its concrete business type:
 type DepartmentRepo struct {
     rds.Repository[DepartmentRepo, DepartmentMapper, model.Department]
 }
+
+func (r DepartmentRepo) Columns() *model.DepartmentColumns {
+    return r.RawMapper().Columns()
+}
 ```
+
+Business services can use `repo.Columns()` together with `repo.Wrapper()`,
+`repo.PageWrapper()`, or `repo.UpdateWrapper()` without constructing a Mapper
+or importing `starter-gorm`.
 
 A package-level base Repository is initialized once. `NewDepartmentRepo`
 returns a value copy, so transaction-bound repositories cannot mutate the
@@ -172,8 +180,8 @@ verbs. Its common operations include:
 
 - `Save`, `SaveWithoutZeroFields`, and `SaveBatch`
 - `QueryByID`, `QueryByIDs`, `QueryByCond`, and `QueryPage`
-- `ExistsByID` and `CountByCond`
-- `ModifyByID` and its zero-field or map variants
+- `ExistsByID`, `CountByCond`, and `CountByMap`
+- `ModifyByID`, `ModifyByCond`, and their zero-field or map variants
 - `RemoveByID`, `RemoveByIDs`, and condition variants
 
 `DefaultOrderBy` and `MaxQuerySize` can be configured globally:
@@ -185,12 +193,14 @@ generator.SetServiceBase(&generatorcloud.ServiceBase{
 })
 ```
 
-Generated typed conditions use value semantics. Single results use `*T`, and
-multiple results use `*[]*T`. Generated page methods validate and convert
+Generated typed conditions use value semantics. Repository query results are
+received directly as `*T`, `[]*T`, or `Pager[T]`. Generated page methods validate and convert
 `webcloud.TimeRange` values to `gormstarter.TimeRange`, then delegate count,
 ordering, limit, offset, and data loading to the Repository pagination methods.
+Generic REST conditions remain Map-based so explicit zero values are preserved.
 Empty base query conditions are supported, while unsafe empty update and delete
-conditions remain rejected by the Repository layer.
+conditions remain rejected by the Repository layer. Generated services use
+Repository Query constructors instead of issuing raw GORM queries.
 
 ## Authority-Aware Routers
 

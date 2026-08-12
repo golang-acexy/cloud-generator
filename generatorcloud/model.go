@@ -4,6 +4,9 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 
@@ -57,6 +60,9 @@ var dtoTmpl string
 //go:embed tmpl/file/repo.gohtml
 var repoTmpl string
 
+//go:embed tmpl/file/columns.gohtml
+var columnsTmpl string
+
 type ModelData struct {
 	StructName string
 	DBType     string
@@ -67,6 +73,17 @@ type RepoData struct {
 	ParamName  string
 	Pkg        string
 	PKG        string
+}
+
+type ColumnFieldData struct {
+	Name string
+	Type string
+}
+
+type ColumnsData struct {
+	StructName string
+	ParamName  string
+	Fields     []ColumnFieldData
 }
 
 type ModelGen struct {
@@ -165,6 +182,59 @@ func modelIDType(meta *generate.QueryStructMeta) (string, error) {
 	}
 	// 保持与旧版生成器一致；没有标准 ID 字段的模型仍可由调用方继续扩展。
 	return "int64", nil
+}
+
+func buildColumnsData(modelName string, meta *generate.QueryStructMeta) ColumnsData {
+	fields := make([]ColumnFieldData, 0, len(meta.Fields))
+	for _, modelField := range meta.Fields {
+		if modelField.Relation != nil {
+			continue
+		}
+		fields = append(fields, ColumnFieldData{Name: modelField.Name, Type: modelField.Type})
+	}
+	return ColumnsData{StructName: modelName, ParamName: str.LowFirstChar(modelName), Fields: fields}
+}
+
+func (m *ModelGen) insertColumns(outputFile string, data ColumnsData) error {
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		return err
+	}
+	fileSet := token.NewFileSet()
+	parsed, err := parser.ParseFile(fileSet, outputFile, content, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+	insertOffset := -1
+	for _, declaration := range parsed.Decls {
+		general, ok := declaration.(*ast.GenDecl)
+		if !ok || general.Tok != token.TYPE {
+			continue
+		}
+		for _, spec := range general.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if ok && typeSpec.Name.Name == data.StructName {
+				insertOffset = fileSet.Position(general.End()).Offset
+				break
+			}
+		}
+		if insertOffset >= 0 {
+			break
+		}
+	}
+	if insertOffset < 0 {
+		return fmt.Errorf("model struct not found: %s", data.StructName)
+	}
+	var columns bytes.Buffer
+	if err = m.gen.render(columnsTmpl, &columns, data); err != nil {
+		return err
+	}
+	result := make([]byte, 0, len(content)+columns.Len()+2)
+	result = append(result, content[:insertOffset]...)
+	result = append(result, '\n', '\n')
+	result = append(result, columns.Bytes()...)
+	result = append(result, content[insertOffset:]...)
+	return os.WriteFile(outputFile, result, 0644)
 }
 
 func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *generate.QueryStructMeta) error {
@@ -287,13 +357,7 @@ func (m *ModelGen) createRepo(outputFile string, structName string) error {
 	}
 	repoPath = filepath.Join(dir, str.CamelToSnake(str.LowFirstChar(structName))+"_repo.go")
 
-	// 判断文件是否存在
-	if _, err := os.Stat(repoPath); err == nil {
-		fmt.Println(structName, "已有repo文件 略过生成")
-		return nil
-	} else {
-		fmt.Println("生成repo文件", structName, repoPath)
-	}
+	fmt.Println("生成repo文件", structName, repoPath)
 	var buf bytes.Buffer
 	if err := m.gen.render(repoTmpl, &buf, RepoData{
 		StructName: structName,
@@ -323,6 +387,10 @@ func (m *ModelGen) Create() error {
 			return fmt.Errorf("model %s: %w", modelName, err)
 		}
 		m.gen.modelIDTypes[modelName] = idType
+		columnsData := buildColumnsData(modelName, queryGenResult.Meta[modelName])
+		if err := m.insertColumns(outputFile, columnsData); err != nil {
+			return err
+		}
 		if err := m.modelAppend(outputFile, modelName, queryGenResult.Meta[modelName]); err != nil {
 			return err
 		}

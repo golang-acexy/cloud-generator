@@ -3,7 +3,6 @@ package {{.PKG}}
 import (
     "{{.ModelPKG}}"
     repo "{{.RepoPKG}}"
-    "github.com/golang-acexy/cloud-database/databasecloud"
     "github.com/golang-acexy/cloud-database/databasecloud/rds"
     "github.com/golang-acexy/cloud-web/webcloud"
 )
@@ -94,61 +93,53 @@ func (v *{{.StructName}}BizService) SaveBatch(saves []*model.{{.StructName}}SDTO
 }
 
 func (v *{{.StructName}}BizService) BaseQueryByID(condition map[string]any) (*model.{{.StructName}}DTO, error) {
-    var entity model.{{.StructName}}
-    row, err := v.repo.QueryOneByMap(condition, &entity)
-    if err != nil || row == 0 {
+    entity, err := v.repo.QueryOneByMap(rds.NewMapQuery(condition))
+    if err != nil || entity == nil {
         return nil, err
     }
     return entity.ToDTO()
 }
 
 func (v *{{.StructName}}BizService) BaseQueryOne(condition map[string]any) (*model.{{.StructName}}DTO, error) {
-    var entity model.{{.StructName}}
-    row, err := v.repo.QueryOneByMap(condition, &entity)
-    if err != nil || row == 0 {
+    entity, err := v.repo.QueryOneByMap(
+        rds.NewMapQuery(condition).OrderBy(v.DefaultOrderBy()),
+    )
+    if err != nil || entity == nil {
         return nil, err
     }
     return entity.ToDTO()
 }
 
 func (v *{{.StructName}}BizService) BaseQuery(condition map[string]any) ([]*model.{{.StructName}}DTO, error) {
-    entities := make([]*model.{{.StructName}}, 0)
-    db := v.repo.TableGormDB()
-    err := db.Where(condition).Order(v.DefaultOrderBy()).Limit(v.MaxQuerySize()).Scan(&entities).Error
+    entities, err := v.repo.QueryByMap(
+        rds.NewMapQuery(condition).
+            OrderBy(v.DefaultOrderBy()).
+            WithLimit(v.MaxQuerySize()),
+    )
     if err != nil {
         return nil, err
     }
     return model.{{.StructName}}Slice(entities).ToDTOs()
 }
 
-func (v *{{.StructName}}BizService) BaseQueryPage(condition map[string]any, timeRanges []webcloud.TimeRange, pager *webcloud.Pager[model.{{.StructName}}DTO]) error {
-    ranges, err := webcloud.ConvertTimeRanges(timeRanges, v.AllowedTimeRangeFields(), v.DefaultTimeRangeField())
+func (v *{{.StructName}}BizService) BaseQueryPage(query webcloud.PagerDTO[map[string]any]) (webcloud.Pager[model.{{.StructName}}DTO], error) {
+    ranges, err := webcloud.ConvertTimeRanges(query.TimeRanges, v.AllowedTimeRangeFields(), v.DefaultTimeRangeField())
     if err != nil {
-        return err
+        return webcloud.Pager[model.{{.StructName}}DTO]{}, err
     }
-    page := databasecloud.Pager[model.{{.StructName}}]{
-        Number: pager.Number,
-        Size:   pager.Size,
-    }
-    query := rds.PageQuery{
-        OrderBySQL: v.DefaultOrderBy(),
-        TimeRanges: ranges,
-    }
-    if len(condition) == 0 {
-        err = v.repo.QueryPageByCond(model.{{.StructName}}{}, query, &page)
-    } else {
-        err = v.repo.QueryPageByMap(condition, query, &page)
-    }
+    page, err := v.repo.QueryPageByMap(
+        rds.NewMapPageQuery(query.Condition, query.Number, query.Size).
+            OrderBy(v.DefaultOrderBy()).
+            WithTimeRanges(ranges...),
+    )
     if err != nil {
-        return err
+        return webcloud.Pager[model.{{.StructName}}DTO]{}, err
     }
     records, err := model.{{.StructName}}Slice(page.Records).ToDTOs()
     if err != nil {
-        return err
+        return webcloud.Pager[model.{{.StructName}}DTO]{}, err
     }
-    pager.Records = records
-    pager.Total = page.Total
-    return nil
+    return webcloud.Pager[model.{{.StructName}}DTO]{Records: records, Total: page.Total, Number: page.Number, Size: page.Size}, nil
 }
 
 func (v *{{.StructName}}BizService) BaseModifyByID(update, condition map[string]any) (int64, error) {
@@ -160,9 +151,8 @@ func (v *{{.StructName}}BizService) BaseRemoveByID(condition map[string]any) (in
 }
 
 func (v *{{.StructName}}BizService) QueryByID(id {{.IDType}}) (*model.{{.StructName}}DTO, error) {
-    var entity model.{{.StructName}}
-    row, err := v.repo.QueryByID(id, &entity)
-    if err != nil || row == 0 {
+    entity, err := v.repo.QueryByID(id)
+    if err != nil || entity == nil {
         return nil, err
     }
     return entity.ToDTO()
@@ -176,8 +166,8 @@ func (v *{{.StructName}}BizService) QueryByIDs(ids []{{.IDType}}) ([]*model.{{.S
     for index, id := range ids {
         queryIDs[index] = id
     }
-    entities := make([]*model.{{.StructName}}, 0, len(ids))
-    if _, err := v.repo.QueryByIDs(queryIDs, &entities); err != nil {
+    entities, err := v.repo.QueryByIDs(queryIDs)
+    if err != nil {
         return nil, err
     }
     return model.{{.StructName}}Slice(entities).ToDTOs()
@@ -192,9 +182,8 @@ func (v *{{.StructName}}BizService) QueryOneByCond(condition model.{{.StructName
     if err != nil {
         return nil, err
     }
-    var entity model.{{.StructName}}
-    row, err := v.repo.QueryOneByCond(*entityCondition, &entity)
-    if err != nil || row == 0 {
+    entity, err := v.repo.QueryOneByCond(rds.NewCondQuery(*entityCondition))
+    if err != nil || entity == nil {
         return nil, err
     }
     return entity.ToDTO()
@@ -205,8 +194,12 @@ func (v *{{.StructName}}BizService) QueryByCond(condition model.{{.StructName}}Q
     if err != nil {
         return nil, err
     }
-    entities := make([]*model.{{.StructName}}, 0)
-    if _, err = v.repo.QueryByCond(*entityCondition, v.DefaultOrderBy(), &entities); err != nil {
+    entities, err := v.repo.QueryByCond(
+        rds.NewCondQuery(*entityCondition).
+            OrderBy(v.DefaultOrderBy()).
+            WithLimit(v.MaxQuerySize()),
+    )
+    if err != nil {
         return nil, err
     }
     return model.{{.StructName}}Slice(entities).ToDTOs()
@@ -217,7 +210,11 @@ func (v *{{.StructName}}BizService) CountByCond(condition model.{{.StructName}}Q
     if err != nil {
         return 0, err
     }
-    return v.repo.CountByCond(*entityCondition)
+    return v.repo.CountByCond(rds.NewCondQuery(*entityCondition))
+}
+
+func (v *{{.StructName}}BizService) CountByMap(condition map[string]any) (int64, error) {
+    return v.repo.CountByMap(rds.NewMapQuery(condition))
 }
 
 func (v *{{.StructName}}BizService) QueryPage(pager webcloud.PagerDTO[model.{{.StructName}}QDTO]) (webcloud.Pager[model.{{.StructName}}DTO], error) {
@@ -229,14 +226,12 @@ func (v *{{.StructName}}BizService) QueryPage(pager webcloud.PagerDTO[model.{{.S
     if err != nil {
         return webcloud.Pager[model.{{.StructName}}DTO]{}, err
     }
-    page := databasecloud.Pager[model.{{.StructName}}]{
-        Number: pager.Number,
-        Size:   pager.Size,
-    }
-    if err = v.repo.QueryPageByCond(*condition, rds.PageQuery{
-        OrderBySQL: v.DefaultOrderBy(),
-        TimeRanges: ranges,
-    }, &page); err != nil {
+    page, err := v.repo.QueryPageByCond(
+        rds.NewPageQuery(*condition, pager.Number, pager.Size).
+            OrderBy(v.DefaultOrderBy()).
+            WithTimeRanges(ranges...),
+    )
+    if err != nil {
         return webcloud.Pager[model.{{.StructName}}DTO]{}, err
     }
     records, err := model.{{.StructName}}Slice(page.Records).ToDTOs()
@@ -259,8 +254,7 @@ func (v *{{.StructName}}BizService) ModifyByID(id {{.IDType}}, updated *model.{{
     if err != nil {
         return 0, err
     }
-    entity.ID = id
-    return v.repo.ModifyByID(entity)
+    return v.repo.ModifyByID(entity, id)
 }
 
 func (v *{{.StructName}}BizService) ModifyByIDWithoutZeroFields(id {{.IDType}}, updated *model.{{.StructName}}MDTO) (int64, error) {
@@ -271,8 +265,7 @@ func (v *{{.StructName}}BizService) ModifyByIDWithoutZeroFields(id {{.IDType}}, 
     if err != nil {
         return 0, err
     }
-    entity.ID = id
-    return v.repo.ModifyByIDWithoutZeroFields(entity)
+    return v.repo.ModifyByIDWithoutZeroFields(entity, id)
 }
 
 func (v *{{.StructName}}BizService) ModifyByIDWithMap(id {{.IDType}}, updated map[string]any) (int64, error) {
@@ -280,6 +273,28 @@ func (v *{{.StructName}}BizService) ModifyByIDWithMap(id {{.IDType}}, updated ma
         return 0, webcloud.ErrBadRequestParameters
     }
     return v.repo.ModifyByIDWithMap(updated, id)
+}
+
+func (v *{{.StructName}}BizService) ModifyByCond(condition model.{{.StructName}}QDTO, updated *model.{{.StructName}}MDTO) (int64, error) {
+    if updated == nil {
+        return 0, webcloud.ErrBadRequestParameters
+    }
+    conditionEntity, err := condition.ToT()
+    if err != nil {
+        return 0, err
+    }
+    updatedEntity, err := updated.ToT()
+    if err != nil {
+        return 0, err
+    }
+    return v.repo.ModifyByCond(updatedEntity, *conditionEntity)
+}
+
+func (v *{{.StructName}}BizService) ModifyByMap(updated, condition map[string]any) (int64, error) {
+    if len(updated) == 0 || len(condition) == 0 {
+        return 0, webcloud.ErrBadRequestParameters
+    }
+    return v.repo.ModifyByMap(updated, condition)
 }
 
 func (v *{{.StructName}}BizService) RemoveByID(id {{.IDType}}) (int64, error) {
