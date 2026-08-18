@@ -13,6 +13,10 @@ type {{.StructName}}Mapper struct {
 	gormstarter.BaseMapper[model.{{.StructName}}]
 }
 
+func ({{.StructName}}Mapper) Columns() *model.{{.StructName}}Columns {
+	return model.{{.StructName}}ColumnSet()
+}
+
 func (m {{.StructName}}Mapper) WithTxMapper(tx *gorm.DB) {{.StructName}}Mapper {
 	return {{.StructName}}Mapper{
 		BaseMapper: m.GetBaseMapperWithTx(tx),
@@ -21,6 +25,11 @@ func (m {{.StructName}}Mapper) WithTxMapper(tx *gorm.DB) {{.StructName}}Mapper {
 
 type {{.StructName}}Repo struct {
 	rds.Repository[{{.StructName}}Repo, {{.StructName}}Mapper, model.{{.StructName}}]
+}
+
+// Columns 返回 {{.StructName}} 对应的类型安全字段集合。
+func (r {{.StructName}}Repo) Columns() *model.{{.StructName}}Columns {
+	return r.RawMapper().Columns()
 }
 
 var {{.ParamName}}Repo = new{{.StructName}}Repo()

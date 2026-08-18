@@ -1,0 +1,17 @@
+// {{.StructName}}Columns 定义 {{.StructName}} Mapper 可使用的类型化字段。
+type {{.StructName}}Columns struct {
+{{- range .Fields }}
+	{{.Name}} gormstarter.Column[{{$.StructName}}, {{.Type}}]
+{{- end }}
+}
+
+var {{.ParamName}}Columns = {{.StructName}}Columns{
+{{- range .Fields }}
+	{{.Name}}: gormstarter.NewColumn(func(entity *{{$.StructName}}) *{{.Type}} { return &entity.{{.Name}} }),
+{{- end }}
+}
+
+// {{.StructName}}ColumnSet 返回 {{.StructName}} 的只读字段元数据。
+func {{.StructName}}ColumnSet() *{{.StructName}}Columns {
+	return &{{.ParamName}}Columns
+}
