@@ -155,7 +155,7 @@ func (g *Generator) dBType() string {
 	}
 }
 
-func (g *Generator) render(tmpl string, wr io.Writer, data interface{}) error {
+func (g *Generator) render(tmpl string, wr io.Writer, data any) error {
 	t, err := template.New(tmpl).Parse(tmpl)
 	if err != nil {
 		return err

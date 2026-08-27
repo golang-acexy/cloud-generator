@@ -26,7 +26,7 @@ The generator is an application-development tool rather than a runtime starter. 
 
 ## Requirements
 
-- Go 1.25.8 or later
+- Go 1.26.7 or later
 - MySQL or PostgreSQL
 - An existing Go module for the generated application
 - Database access to inspect the target tables
