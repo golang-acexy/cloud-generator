@@ -4,7 +4,7 @@ go 1.26.7
 
 require (
 	github.com/acexy/gen v0.0.2
-	github.com/acexy/golang-toolkit v1.26.0
+	github.com/acexy/golang-toolkit v1.26.1
 	golang.org/x/tools v0.49.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.2
