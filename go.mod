@@ -1,10 +1,10 @@
 module github.com/golang-acexy/cloud-generator
 
-go 1.25.8
+go 1.26.7
 
 require (
 	github.com/acexy/gen v0.0.2
-	github.com/acexy/golang-toolkit v1.25.4
+	github.com/acexy/golang-toolkit v1.26.1
 	golang.org/x/tools v0.49.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.2
@@ -23,7 +23,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/sirupsen/logrus v1.10.1 // indirect
+	github.com/sirupsen/logrus v1.10.2 // indirect
 	golang.org/x/mod v0.40.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
