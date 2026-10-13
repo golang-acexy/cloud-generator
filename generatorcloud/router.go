@@ -15,26 +15,41 @@ import (
 //go:embed tmpl/file/router.gohtml
 var routerImpl string
 
+// RouterGen generates missing router files; existing files are skipped without content validation.
 type RouterGen struct {
 	gen    *Generator
 	config map[string]*RouterConfig
 }
 
+// RouterData holds router template inputs, including trusted injected Go code.
 type RouterData struct {
-	ModelStructName      string
-	IDType               string
-	WithAuthority        bool
-	ParamName            string
-	PkgName              string
-	ModelPKG             string
-	BizPKG               string
-	AuthorityFetchCode   string
+	// ModelStructName is the generated Go model name.
+	ModelStructName string
+	// IDType is the model ID type expression; accepted metadata does not guarantee all templates compile.
+	IDType string
+	// WithAuthority selects authority-aware router construction.
+	WithAuthority bool
+	// ParamName is the lower-initial name used for generated package variables.
+	ParamName string
+	// PkgName is the generated router package name.
+	PkgName string
+	// ModelPKG is the model import path.
+	ModelPKG string
+	// BizPKG is the business service import path.
+	BizPKG string
+	// AuthorityFetchCode is inserted verbatim as a Go expression; it is not validated for type compatibility.
+	AuthorityFetchCode string
+	// AuthorityStructField names the writable save DTO identity field; its existence and type are not checked.
 	AuthorityStructField string
-	AuthorityColumn      string
-	GroupPath            string
-	DisableBaseHandler   bool
+	// AuthorityColumn names the persistence ownership column; it is not checked against table metadata.
+	AuthorityColumn string
+	// GroupPath is inserted into the generated router group string; use a valid trusted Go string value.
+	GroupPath string
+	// DisableBaseHandler omits default CRUD registration, leaving the router available for custom handlers.
+	DisableBaseHandler bool
 }
 
+// NewRouterGen borrows a generator and router map; entries must be non-nil and ID metadata must already exist.
 func NewRouterGen(gen *Generator, config map[string]*RouterConfig) *RouterGen {
 	return &RouterGen{
 		gen:    gen,
@@ -42,6 +57,7 @@ func NewRouterGen(gen *Generator, config map[string]*RouterConfig) *RouterGen {
 	}
 }
 
+// Create writes missing router files after shallow path/authority checks; partial output is retained on failure.
 func (s *RouterGen) Create() error {
 	bizPKG := path.Join(s.gen.modelPkg, "biz")
 	if len(s.gen.serviceRelativeModelPath) > 0 {
@@ -59,7 +75,7 @@ func (s *RouterGen) Create() error {
 			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 				return err
 			}
-			// 判断文件是否存在
+
 			if _, err := os.Stat(filePath); err == nil {
 				fmt.Println(structName, "已有base router文件 略过生成")
 			} else {
@@ -101,7 +117,7 @@ func (s *RouterGen) Create() error {
 			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 				return err
 			}
-			// 判断文件是否存在
+
 			if _, err := os.Stat(filePath); err == nil {
 				fmt.Println(structName, "已有权限路由文件 略过生成")
 			} else {

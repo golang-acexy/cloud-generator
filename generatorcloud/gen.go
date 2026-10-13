@@ -13,51 +13,80 @@ import (
 	"gorm.io/gorm"
 )
 
+// TableConfig selects a table and generated Go model; names must be unique and valid for the target package.
 type TableConfig struct {
+	// TableName is the existing database table to inspect.
 	TableName string
+	// ModelName is the generated exported Go model name and configuration lookup key.
 	ModelName string
-	// model 单独设置
+
+	// DTOExcluded adds exact Go field names to the applicable DTO exclusion sets.
 	DTOExcluded ModelDTOExcluded
 
-	// service 单独设置
+	// DisableService skips service generation but does not remove router references to that service.
 	DisableService bool
 
+	// Router optionally requests router generation for this model.
 	Router *RouterConfig
 }
 
+// ModelBase configures shared DTO exclusions and time-range names; Create normalizes its fields in place.
 type ModelBase struct {
-	DTOExcluded            ModelDTOExcluded
-	DefaultTimeRangeField  string
+	// DTOExcluded adds exact Go field names to the applicable DTO exclusion sets.
+	DTOExcluded ModelDTOExcluded
+	// DefaultTimeRangeField is normalized to snake case and must appear in AllowedTimeRangeFields.
+	DefaultTimeRangeField string
+	// AllowedTimeRangeFields lists allowed time columns; existence in every model is not checked.
 	AllowedTimeRangeFields []string
 }
 
+// ServiceBase sets defaults for newly generated services; existing service files are retained.
 type ServiceBase struct {
+	// DefaultOrderBy supplies trusted SQL ordering; empty uses id desc.
 	DefaultOrderBy string
-	MaxQuerySize   int
+	// MaxQuerySize caps ordinary generated list queries; nonpositive values use 500 and do not cap pages.
+	MaxQuerySize int
 }
 
+// ModelDTOExcluded lists exact Go field names excluded from each DTO; global and table exclusions are combined.
 type ModelDTOExcluded struct {
-	SaveDTOExcludedFields   []string
-	QueryDTOExcludedFields  []string
+	// SaveDTOExcludedFields excludes save fields in addition to built-in ID and audit fields.
+	SaveDTOExcludedFields []string
+	// QueryDTOExcludedFields excludes fields from typed query DTOs.
+	QueryDTOExcludedFields []string
+	// ModifyDTOExcludedFields excludes update fields in addition to built-in ID and audit fields.
 	ModifyDTOExcludedFields []string
-	DTOExcludedFields       []string
+	// DTOExcludedFields excludes response DTO fields only.
+	DTOExcludedFields []string
 }
 
+// BaseRouter configures a plain router output path and group; path inputs are trusted and not confined to the output root.
 type BaseRouter struct {
-	// model 相对于 modelBase 的路径
+
+	// RelativeModelPath gives path components relative to the model output; its final component is the package name.
 	RelativeModelPath []string
-	GroupPath         string
-	FilePrefix        string
+	// GroupPath is inserted into the generated router group string; use a valid trusted Go string value.
+	GroupPath string
+	// FilePrefix adds a directory component before the filename; it is not a filename prefix.
+	FilePrefix string
 }
 
+// BaseRouterWithAuthority configures identity-aware routes; supplied code and column names must be trusted and type-compatible.
 type BaseRouterWithAuthority struct {
+	// BaseRouter supplies output path and group settings.
 	BaseRouter
-	AuthorityFetchCode   string
+	// AuthorityFetchCode is inserted verbatim as a Go expression; it is not validated for type compatibility.
+	AuthorityFetchCode string
+	// AuthorityStructField names the writable save DTO identity field; its existence and type are not checked.
 	AuthorityStructField string
-	AuthorityColumn      string
-	DisableBaseHandler   bool
+	// AuthorityColumn names the persistence ownership column; it is not checked against table metadata.
+	AuthorityColumn string
+	// DisableBaseHandler omits default CRUD registration, leaving the router available for custom handlers.
+	DisableBaseHandler bool
 }
 
+// Generator owns mutable generation state; do not configure or run it concurrently.
+// It borrows the DB and configuration, writes files incrementally, and does not roll back partial output.
 type Generator struct {
 	gen        *gen.Generator
 	db         *gorm.DB
@@ -71,19 +100,24 @@ type Generator struct {
 	serviceRelativeModelPath []string
 
 	tableConfigs []TableConfig
-	// key为modelName
+
 	tableConfigsMap map[string]TableConfig
-	// key 为模型名，值为模型主键的 Go 类型。
+
 	modelIDTypes map[string]string
 }
 
+// RouterConfig requests plain and/or authority routers; colliding output paths keep the first existing file.
 type RouterConfig struct {
-	// 不带权限控制的基础路由
+
+	// BaseRouter contains the plain router settings.
 	BaseRouter *BaseRouter
-	// 带权限控制的基础路由
+
+	// BaseRouterWithAuthority optionally requests an authority-aware router.
 	BaseRouterWithAuthority *BaseRouterWithAuthority
 }
 
+// NewGen creates a generator borrowing the DB and table configuration; it neither opens nor closes the DB.
+// Configure the model import path and time ranges before Create; duplicate model names overwrite lookup entries.
 func NewGen(db *gorm.DB, baseRootPath string, tableConfigs []TableConfig) *Generator {
 	d := &Generator{
 		tableConfigs: tableConfigs,
@@ -108,7 +142,7 @@ func (g *Generator) getTableConfig(modelName string) TableConfig {
 	return g.tableConfigsMap[modelName]
 }
 
-// SetModelBase 设置model的基础信息
+// SetModelBase borrows the settings pointer; nil resets it to empty settings that fail Create time-range validation.
 func (g *Generator) SetModelBase(base *ModelBase) {
 	if base == nil {
 		g.modelBase = &ModelBase{}
@@ -117,22 +151,22 @@ func (g *Generator) SetModelBase(base *ModelBase) {
 	g.modelBase = base
 }
 
-// SetIncludeModelPkgPath 设置model包名 用于使用该package
+// SetIncludeModelPkgPath sets the target model import path; nonempty values are not checked against the filesystem.
 func (g *Generator) SetIncludeModelPkgPath(modelPkg string) {
 	g.modelPkg = modelPkg
 }
 
-// SetRepoRelativeModelPath 设置 repo 相对于 modelBase 的路径 例如 上一级 []string{".."}
+// SetRepoRelativeModelPath borrows output path components; empty selects repo and the final component supplies the package name.
 func (g *Generator) SetRepoRelativeModelPath(path []string) {
 	g.repoRelativeModelPath = path
 }
 
-// SetServiceRelativeModelPath 添加 service 相对于 modelBase 的路径 例如 上一级 []string{".."}
+// SetServiceRelativeModelPath borrows output path components; empty selects biz and the final component supplies the package name.
 func (g *Generator) SetServiceRelativeModelPath(path []string) {
 	g.serviceRelativeModelPath = path
 }
 
-// SetServiceBase 设置 service 基础信息
+// SetServiceBase borrows service defaults; nil uses id desc and a list limit of 500.
 func (g *Generator) SetServiceBase(base *ServiceBase) {
 	g.serviceBase = base
 }
@@ -163,11 +197,17 @@ func (g *Generator) render(tmpl string, wr io.Writer, data any) error {
 	return t.Execute(wr, data)
 }
 
+// DBTypeData holds model names and database expressions for template rendering.
 type DBTypeData struct {
+	// StructName is the generated Go model name.
 	StructName string
-	DBType     string
+	// DBType is the Go expression selecting the GORM database dialect.
+	DBType string
 }
 
+// Create validates required configuration and generates output incrementally.
+// Models and repositories may be overwritten; service/router files are retained. Errors or dependency panics can leave partial output.
+// Time fields are required even when services are disabled; this does not compile the generated application.
 func (g *Generator) Create() error {
 	if g.modelPkg == "" {
 		return ErrModelPackageRequired
@@ -185,7 +225,6 @@ func (g *Generator) Create() error {
 	return NewModelGen(g).Create()
 }
 
-// validateTimeRangeConfig 校验生成代码所必需的时间范围字段配置。
 func (g *Generator) validateTimeRangeConfig() error {
 	defaultField := str.CamelToSnake(g.modelBase.DefaultTimeRangeField)
 	if defaultField == "" || len(g.modelBase.AllowedTimeRangeFields) == 0 {

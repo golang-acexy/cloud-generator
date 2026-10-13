@@ -1,6 +1,8 @@
-// {{.StructName}}Columns 定义 {{.StructName}} Mapper 可使用的类型化字段。
+
+// {{.StructName}}Columns holds typed column descriptors for the model.
 type {{.StructName}}Columns struct {
 {{- range .Fields }}
+	// {{.Name}} selects the corresponding model field.
 	{{.Name}} gormstarter.Column[{{$.StructName}}, {{.Type}}]
 {{- end }}
 }
@@ -11,7 +13,7 @@ var {{.ParamName}}Columns = {{.StructName}}Columns{
 {{- end }}
 }
 
-// {{.StructName}}ColumnSet 返回 {{.StructName}} 的只读字段元数据。
+// {{.StructName}}ColumnSet returns shared column descriptors; do not mutate the returned object.
 func {{.StructName}}ColumnSet() *{{.StructName}}Columns {
 	return &{{.ParamName}}Columns
 }

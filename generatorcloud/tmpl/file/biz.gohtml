@@ -11,26 +11,32 @@ var {{.ParamName}}BizService = &{{.StructName}}BizService{
     repo: repo.New{{.StructName}}Repo(),
 }
 
+// New{{.StructName}}BizService returns the shared singleton; custom mutable state must support concurrent requests.
 func New{{.StructName}}BizService() *{{.StructName}}BizService {
     return {{.ParamName}}BizService
 }
 
+// {{.StructName}}BizService adapts DTOs to repository operations; direct calls do not enforce HTTP authority.
 type {{.StructName}}BizService struct {
     repo repo.{{.StructName}}Repo
 }
 
+// MaxQuerySize returns the ordinary list limit; it does not cap page sizes.
 func (v *{{.StructName}}BizService) MaxQuerySize() int {
     return {{.MaxQuerySize}}
 }
 
+// DefaultOrderBy returns trusted SQL ordering for applicable list and map queries.
 func (v *{{.StructName}}BizService) DefaultOrderBy() string {
     return {{printf "%q" .DefaultOrderBy}}
 }
 
+// DefaultTimeRangeField returns the field used for one unnamed time range.
 func (v *{{.StructName}}BizService) DefaultTimeRangeField() string {
     return {{printf "%q" .DefaultTimeRangeField}}
 }
 
+// AllowedTimeRangeFields returns a fresh list of allowed time fields.
 func (v *{{.StructName}}BizService) AllowedTimeRangeFields() []string {
     return []string{
     {{- range .AllowedTimeRangeFields }}
@@ -39,6 +45,7 @@ func (v *{{.StructName}}BizService) AllowedTimeRangeFields() []string {
     }
 }
 
+// Save converts a non-nil save DTO and inserts it using model defaults, returning its ID.
 func (v *{{.StructName}}BizService) Save(save *model.{{.StructName}}SDTO) ({{.IDType}}, error) {
     if save == nil {
         return 0, webcloud.ErrBadRequestParameters
@@ -53,6 +60,7 @@ func (v *{{.StructName}}BizService) Save(save *model.{{.StructName}}SDTO) ({{.ID
     return entity.ID, nil
 }
 
+// SaveWithoutZeroFields converts a non-nil save DTO and inserts nonzero fields, returning its ID.
 func (v *{{.StructName}}BizService) SaveWithoutZeroFields(save *model.{{.StructName}}SDTO) ({{.IDType}}, error) {
     if save == nil {
         return 0, webcloud.ErrBadRequestParameters
@@ -67,6 +75,7 @@ func (v *{{.StructName}}BizService) SaveWithoutZeroFields(save *model.{{.StructN
     return entity.ID, nil
 }
 
+// SaveBatch inserts converted DTOs; empty input returns an empty ID slice and nil elements are rejected.
 func (v *{{.StructName}}BizService) SaveBatch(saves []*model.{{.StructName}}SDTO) ([]{{.IDType}}, error) {
     if len(saves) == 0 {
         return make([]{{.IDType}}, 0), nil
@@ -92,6 +101,7 @@ func (v *{{.StructName}}BizService) SaveBatch(saves []*model.{{.StructName}}SDTO
     return ids, nil
 }
 
+// BaseQueryByID queries column predicates; no result returns nil, nil and errors are preserved.
 func (v *{{.StructName}}BizService) BaseQueryByID(condition map[string]any) (*model.{{.StructName}}DTO, error) {
     entity, err := v.repo.QueryOneByMap(rds.NewMapQuery(condition))
     if err != nil || entity == nil {
@@ -100,6 +110,7 @@ func (v *{{.StructName}}BizService) BaseQueryByID(condition map[string]any) (*mo
     return entity.ToDTO()
 }
 
+// BaseQueryOne queries column predicates with default ordering; no result returns nil, nil.
 func (v *{{.StructName}}BizService) BaseQueryOne(condition map[string]any) (*model.{{.StructName}}DTO, error) {
     entity, err := v.repo.QueryOneByMap(
         rds.NewMapQuery(condition).OrderBy(v.DefaultOrderBy()),
@@ -110,6 +121,7 @@ func (v *{{.StructName}}BizService) BaseQueryOne(condition map[string]any) (*mod
     return entity.ToDTO()
 }
 
+// BaseQuery queries column predicates with default ordering and the list limit; empty filters are accepted.
 func (v *{{.StructName}}BizService) BaseQuery(condition map[string]any) ([]*model.{{.StructName}}DTO, error) {
     entities, err := v.repo.QueryByMap(
         rds.NewMapQuery(condition).
@@ -122,6 +134,7 @@ func (v *{{.StructName}}BizService) BaseQuery(condition map[string]any) ([]*mode
     return model.{{.StructName}}Slice(entities).ToDTOs()
 }
 
+// BaseQueryPage validates time ranges and queries a page; request size is not capped by MaxQuerySize.
 func (v *{{.StructName}}BizService) BaseQueryPage(query webcloud.PagerDTO[map[string]any]) (webcloud.Pager[model.{{.StructName}}DTO], error) {
     ranges, err := webcloud.ConvertTimeRanges(query.TimeRanges, v.AllowedTimeRangeFields(), v.DefaultTimeRangeField())
     if err != nil {
@@ -142,14 +155,17 @@ func (v *{{.StructName}}BizService) BaseQueryPage(query webcloud.PagerDTO[map[st
     return webcloud.Pager[model.{{.StructName}}DTO]{Records: records, Total: page.Total, Number: page.Number, Size: page.Size}, nil
 }
 
+// BaseModifyByID forwards update and condition maps, preserving explicit zeros and authority predicates.
 func (v *{{.StructName}}BizService) BaseModifyByID(update, condition map[string]any) (int64, error) {
     return v.repo.ModifyByMap(update, condition)
 }
 
+// BaseRemoveByID forwards column predicates, including authority restrictions, to deletion.
 func (v *{{.StructName}}BizService) BaseRemoveByID(condition map[string]any) (int64, error) {
     return v.repo.RemoveByMap(condition)
 }
 
+// QueryByID returns the matching DTO or nil, nil when no record exists.
 func (v *{{.StructName}}BizService) QueryByID(id {{.IDType}}) (*model.{{.StructName}}DTO, error) {
     entity, err := v.repo.QueryByID(id)
     if err != nil || entity == nil {
@@ -158,6 +174,7 @@ func (v *{{.StructName}}BizService) QueryByID(id {{.IDType}}) (*model.{{.StructN
     return entity.ToDTO()
 }
 
+// QueryByIDs queries IDs; empty input returns an empty DTO slice and input ordering is not guaranteed.
 func (v *{{.StructName}}BizService) QueryByIDs(ids []{{.IDType}}) ([]*model.{{.StructName}}DTO, error) {
     if len(ids) == 0 {
         return make([]*model.{{.StructName}}DTO, 0), nil
@@ -173,10 +190,12 @@ func (v *{{.StructName}}BizService) QueryByIDs(ids []{{.IDType}}) ([]*model.{{.S
     return model.{{.StructName}}Slice(entities).ToDTOs()
 }
 
+// ExistsByID checks existence and preserves database errors.
 func (v *{{.StructName}}BizService) ExistsByID(id {{.IDType}}) (bool, error) {
     return v.repo.ExistsByID(id)
 }
 
+// QueryOneByCond queries nonzero typed conditions and returns nil, nil for no record.
 func (v *{{.StructName}}BizService) QueryOneByCond(condition model.{{.StructName}}QDTO) (*model.{{.StructName}}DTO, error) {
     entityCondition, err := condition.ToT()
     if err != nil {
@@ -189,6 +208,7 @@ func (v *{{.StructName}}BizService) QueryOneByCond(condition model.{{.StructName
     return entity.ToDTO()
 }
 
+// QueryByCond queries nonzero typed conditions with default ordering and the list limit.
 func (v *{{.StructName}}BizService) QueryByCond(condition model.{{.StructName}}QDTO) ([]*model.{{.StructName}}DTO, error) {
     entityCondition, err := condition.ToT()
     if err != nil {
@@ -205,6 +225,7 @@ func (v *{{.StructName}}BizService) QueryByCond(condition model.{{.StructName}}Q
     return model.{{.StructName}}Slice(entities).ToDTOs()
 }
 
+// CountByCond counts nonzero typed conditions without applying the list limit.
 func (v *{{.StructName}}BizService) CountByCond(condition model.{{.StructName}}QDTO) (int64, error) {
     entityCondition, err := condition.ToT()
     if err != nil {
@@ -213,10 +234,12 @@ func (v *{{.StructName}}BizService) CountByCond(condition model.{{.StructName}}Q
     return v.repo.CountByCond(rds.NewCondQuery(*entityCondition))
 }
 
+// CountByMap counts column predicates, including explicit zeros.
 func (v *{{.StructName}}BizService) CountByMap(condition map[string]any) (int64, error) {
     return v.repo.CountByMap(rds.NewMapQuery(condition))
 }
 
+// QueryPage converts typed conditions and validates time ranges; no HTTP page-size cap is applied here.
 func (v *{{.StructName}}BizService) QueryPage(pager webcloud.PagerDTO[model.{{.StructName}}QDTO]) (webcloud.Pager[model.{{.StructName}}DTO], error) {
     condition, err := pager.Condition.ToT()
     if err != nil {
@@ -246,6 +269,7 @@ func (v *{{.StructName}}BizService) QueryPage(pager webcloud.PagerDTO[model.{{.S
     }, nil
 }
 
+// ModifyByID updates nonzero DTO fields; use map assignments to write explicit zeros.
 func (v *{{.StructName}}BizService) ModifyByID(id {{.IDType}}, updated *model.{{.StructName}}MDTO) (int64, error) {
     if updated == nil {
         return 0, webcloud.ErrBadRequestParameters
@@ -257,6 +281,7 @@ func (v *{{.StructName}}BizService) ModifyByID(id {{.IDType}}, updated *model.{{
     return v.repo.ModifyByID(entity, id)
 }
 
+// ModifyByIDWithoutZeroFields updates selected nonzero DTO fields; nil input is rejected.
 func (v *{{.StructName}}BizService) ModifyByIDWithoutZeroFields(id {{.IDType}}, updated *model.{{.StructName}}MDTO) (int64, error) {
     if updated == nil {
         return 0, webcloud.ErrBadRequestParameters
@@ -268,6 +293,7 @@ func (v *{{.StructName}}BizService) ModifyByIDWithoutZeroFields(id {{.IDType}}, 
     return v.repo.ModifyByIDWithoutZeroFields(entity, id)
 }
 
+// ModifyByIDWithMap updates explicit column assignments; empty updates are rejected.
 func (v *{{.StructName}}BizService) ModifyByIDWithMap(id {{.IDType}}, updated map[string]any) (int64, error) {
     if len(updated) == 0 {
         return 0, webcloud.ErrBadRequestParameters
@@ -275,6 +301,7 @@ func (v *{{.StructName}}BizService) ModifyByIDWithMap(id {{.IDType}}, updated ma
     return v.repo.ModifyByIDWithMap(updated, id)
 }
 
+// ModifyByCond updates nonzero typed predicates and assignments; nil update DTOs are rejected.
 func (v *{{.StructName}}BizService) ModifyByCond(condition model.{{.StructName}}QDTO, updated *model.{{.StructName}}MDTO) (int64, error) {
     if updated == nil {
         return 0, webcloud.ErrBadRequestParameters
@@ -290,6 +317,7 @@ func (v *{{.StructName}}BizService) ModifyByCond(condition model.{{.StructName}}
     return v.repo.ModifyByCond(updatedEntity, *conditionEntity)
 }
 
+// ModifyByMap updates explicit assignments with column predicates; empty maps are rejected.
 func (v *{{.StructName}}BizService) ModifyByMap(updated, condition map[string]any) (int64, error) {
     if len(updated) == 0 || len(condition) == 0 {
         return 0, webcloud.ErrBadRequestParameters
@@ -297,10 +325,12 @@ func (v *{{.StructName}}BizService) ModifyByMap(updated, condition map[string]an
     return v.repo.ModifyByMap(updated, condition)
 }
 
+// RemoveByID delegates ID deletion; use map predicates for nonnumeric string keys to avoid GORM inline SQL semantics.
 func (v *{{.StructName}}BizService) RemoveByID(id {{.IDType}}) (int64, error) {
     return v.repo.RemoveByID(id)
 }
 
+// RemoveByIDs deletes an ID batch; empty input returns zero without database access.
 func (v *{{.StructName}}BizService) RemoveByIDs(ids []{{.IDType}}) (int64, error) {
     if len(ids) == 0 {
         return 0, nil
@@ -312,6 +342,7 @@ func (v *{{.StructName}}BizService) RemoveByIDs(ids []{{.IDType}}) (int64, error
     return v.repo.RemoveByIDs(removeIDs)
 }
 
+// RemoveByCond deletes matching nonzero typed conditions with repository safeguards.
 func (v *{{.StructName}}BizService) RemoveByCond(condition model.{{.StructName}}QDTO) (int64, error) {
     entity, err := condition.ToT()
     if err != nil {
@@ -320,6 +351,7 @@ func (v *{{.StructName}}BizService) RemoveByCond(condition model.{{.StructName}}
     return v.repo.RemoveByCond(*entity)
 }
 
+// RemoveByMap deletes matching column predicates; empty filters are rejected.
 func (v *{{.StructName}}BizService) RemoveByMap(condition map[string]any) (int64, error) {
     if len(condition) == 0 {
         return 0, webcloud.ErrBadRequestParameters

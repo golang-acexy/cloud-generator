@@ -9,25 +9,31 @@ import (
 {{- end }}
 )
 
+// {{.StructName}}Mapper adds concrete transaction copying and typed columns to BaseMapper.
 type {{.StructName}}Mapper struct {
+	// BaseMapper supplies starter-managed database operations.
 	gormstarter.BaseMapper[model.{{.StructName}}]
 }
 
+// Columns returns shared column descriptors; callers must treat them as read-only.
 func ({{.StructName}}Mapper) Columns() *model.{{.StructName}}Columns {
 	return model.{{.StructName}}ColumnSet()
 }
 
+// WithTxMapper returns a mapper copy bound to a caller-owned transaction; nil restores ordinary routing.
 func (m {{.StructName}}Mapper) WithTxMapper(tx *gorm.DB) {{.StructName}}Mapper {
 	return {{.StructName}}Mapper{
 		BaseMapper: m.GetBaseMapperWithTx(tx),
 	}
 }
 
+// {{.StructName}}Repo preserves its concrete type when binding transactions.
 type {{.StructName}}Repo struct {
+	// Repository supplies CRUD operations and concrete transaction factories.
 	rds.Repository[{{.StructName}}Repo, {{.StructName}}Mapper, model.{{.StructName}}]
 }
 
-// Columns 返回 {{.StructName}} 对应的类型安全字段集合。
+// Columns returns shared column descriptors; callers must treat them as read-only.
 func (r {{.StructName}}Repo) Columns() *model.{{.StructName}}Columns {
 	return r.RawMapper().Columns()
 }
@@ -44,10 +50,7 @@ func new{{.StructName}}Repo() {{.StructName}}Repo {
 	return {{.StructName}}Repo{Repository: repository}
 }
 
+// New{{.StructName}}Repo returns a value copy of the shared base repository; custom state must be preserved by transaction factories.
 func New{{.StructName}}Repo() {{.StructName}}Repo {
 	return {{.ParamName}}Repo
 }
-
-// 在此处扩展自定义 Mapper 能力。
-
-// 在此处扩展自定义 Repository 能力。
