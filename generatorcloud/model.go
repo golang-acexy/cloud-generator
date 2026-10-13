@@ -28,8 +28,6 @@ var defaultFieldOptions = []gen.ModelOpt{
 	}),
 }
 
-// fieldTypeBySourceType 按生成器推导出的 Go 类型替换模型字段类型。
-// 数据库的 DATE、DATETIME、TIMESTAMP 会由生成器映射为 time.Time，统一改为框架时间类型。
 func fieldTypeBySourceType(sourceType, targetType string) model.ModifyFieldOpt {
 	return func(field *model.Field) *model.Field {
 		if field.Type == sourceType {
@@ -63,33 +61,50 @@ var repoTmpl string
 //go:embed tmpl/file/columns.gohtml
 var columnsTmpl string
 
+// ModelData holds model method template inputs.
 type ModelData struct {
+	// StructName is the generated Go model name.
 	StructName string
-	DBType     string
+	// DBType is the Go expression selecting the GORM database dialect.
+	DBType string
 }
 
+// RepoData holds repository template names and import paths.
 type RepoData struct {
+	// StructName is the generated Go model name.
 	StructName string
-	ParamName  string
-	Pkg        string
-	PKG        string
+	// ParamName is the lower-initial name used for generated package variables.
+	ParamName string
+	// Pkg is the model import path.
+	Pkg string
+	// PKG is the output package name.
+	PKG string
 }
 
+// ColumnFieldData describes one generated typed column.
 type ColumnFieldData struct {
+	// Name is the Go model field name.
 	Name string
+	// Type is its Go type expression.
 	Type string
 }
 
+// ColumnsData holds the model column template inputs.
 type ColumnsData struct {
+	// StructName is the generated Go model name.
 	StructName string
-	ParamName  string
-	Fields     []ColumnFieldData
+	// ParamName is the lower-initial name used for generated package variables.
+	ParamName string
+	// Fields contains non-relation column metadata.
+	Fields []ColumnFieldData
 }
 
+// ModelGen generates and overwrites models and repositories, then creates missing services and routers.
 type ModelGen struct {
 	gen *Generator
 }
 
+// NewModelGen wraps a configured generator without validation; prefer Generator.Create for prerequisite checks.
 func NewModelGen(gen *Generator) *ModelGen {
 	return &ModelGen{
 		gen: gen,
@@ -145,19 +160,29 @@ func (m *ModelGen) loadSettings() {
 	})
 }
 
+// DtoData holds mutable metadata and exclusion callbacks for DTO rendering.
 type DtoData struct {
+	// QueryStructMeta provides mutable source metadata for DTO rendering.
 	*generate.QueryStructMeta
 
-	IsSExcluded     func(s string) bool
+	// IsSExcluded reports whether a save DTO field is excluded.
+	IsSExcluded func(s string) bool
+	// SExcludedFields stores exact save DTO field exclusions.
 	SExcludedFields map[string]struct{}
 
-	IsQExcluded     func(q string) bool
+	// IsQExcluded reports whether a query DTO field is excluded.
+	IsQExcluded func(q string) bool
+	// QExcludedFields stores exact query DTO field exclusions.
 	QExcludedFields map[string]struct{}
 
-	IsMExcluded     func(m string) bool
+	// IsMExcluded reports whether an update DTO field is excluded.
+	IsMExcluded func(m string) bool
+	// MExcludedFields stores exact update DTO field exclusions.
 	MExcludedFields map[string]struct{}
 
-	IsDExcluded     func(m string) bool
+	// IsDExcluded reports whether a response DTO field is excluded.
+	IsDExcluded func(m string) bool
+	// DExcludedFields stores exact response DTO field exclusions.
 	DExcludedFields map[string]struct{}
 }
 
@@ -180,7 +205,7 @@ func modelIDType(meta *generate.QueryStructMeta) (string, error) {
 			}
 		}
 	}
-	// 保持与旧版生成器一致；没有标准 ID 字段的模型仍可由调用方继续扩展。
+
 	return "int64", nil
 }
 
@@ -244,7 +269,6 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 	}
 	defer file.Close()
 
-	// 移除所有gorm tag
 	coll.SliceForEachAll(meta.Fields, func(field *model.Field) {
 		field.GORMTag = nil
 		field.Tag = coll.MapFilterCollect(field.Tag, func(k string, v string) (string, string, bool) {
@@ -255,7 +279,6 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 		})
 	})
 
-	// 追加写入接口实现函数 tableName
 	dbType, err := m.getDBType()
 	if err != nil {
 		return err
@@ -321,7 +344,7 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 		_, ok := data.DExcludedFields[s]
 		return ok
 	}
-	// 追加写入DTO
+
 	if err = m.gen.render(dtoTmpl, file, data); err != nil {
 		return err
 	}
@@ -329,7 +352,6 @@ func (m *ModelGen) modelAppend(outputFile string, modelName string, meta *genera
 		return err
 	}
 
-	// 修改import
 	content, err := os.ReadFile(outputFile)
 	if err != nil {
 		return err
@@ -374,6 +396,8 @@ func (m *ModelGen) createRepo(outputFile string, structName string) error {
 	return os.WriteFile(repoPath, result, 0644)
 }
 
+// Create reads metadata and writes model, DTO, column, and repository files before services and routers.
+// It bypasses Generator.Create prerequisite checks; failures can leave partial output.
 func (m *ModelGen) Create() error {
 	m.loadSettings()
 	queryGenResult := m.gen.rawGen().ExecuteWithOutInfo()

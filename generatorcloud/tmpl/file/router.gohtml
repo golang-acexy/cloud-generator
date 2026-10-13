@@ -26,24 +26,29 @@ var {{.ParamName}}Router = func() *{{.ModelStructName}}Router {
     }
 }()
 
+// New{{.ModelStructName}}Router returns the shared singleton; custom mutable state must support concurrent requests.
 func New{{.ModelStructName}}Router() *{{.ModelStructName}}Router {
     return {{.ParamName}}Router
 }
 
+// {{.ModelStructName}}Router exposes the configured base CRUD handlers and custom route extension point.
 type {{.ModelStructName}}Router struct {
+    // BaseRouter supplies the configured shared CRUD handlers.
     *webcloud.BaseRouter[{{.IDType}}, model.{{.ModelStructName}}SDTO, model.{{.ModelStructName}}MDTO, model.{{.ModelStructName}}QDTO, model.{{.ModelStructName}}DTO]
     bizService *biz.{{.ModelStructName}}BizService
 }
 
+// Info returns the router group configuration.
 func (r *{{.ModelStructName}}Router) Info() *ginstarter.RouterInfo {
     return &ginstarter.RouterInfo{
         GroupPath: "{{.GroupPath}}",
     }
 }
 
+// Handlers registers configured base routes; custom handlers must enforce their own authority checks.
 func (r *{{.ModelStructName}}Router) Handlers(router *ginstarter.RouterWrapper) {
 {{- if not .DisableBaseHandler }}
     r.RegisterBaseHandlers(router, r)
 {{- end }}
-    // 在此处注册自定义业务路由。
+
 }

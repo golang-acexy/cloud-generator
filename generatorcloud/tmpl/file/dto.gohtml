@@ -1,39 +1,45 @@
-// {{.ModelStructName}}SDTO 定义保存操作允许接收的字段。
+
+// {{.ModelStructName}}SDTO contains configured save fields, excluding database-generated fields.
 type {{.ModelStructName}}SDTO struct {
 {{- range .Fields }}
     {{- if not (call $.IsSExcluded .Name) }}
+    // {{.Name}} carries the corresponding model field value.
     {{.Name}} {{.Type}} `{{.Tags}}`
     {{- end }}
 {{- end }}
 }
 
-// {{.ModelStructName}}MDTO 定义修改操作允许接收的字段。
+// {{.ModelStructName}}MDTO contains configured update fields, excluding database-generated fields.
 type {{.ModelStructName}}MDTO struct {
 {{- range .Fields }}
     {{- if not (call $.IsMExcluded .Name) }}
+    // {{.Name}} carries the corresponding model field value.
     {{.Name}} {{.Type}} `{{.Tags}}`
     {{- end }}
 {{- end }}
 }
 
-// {{.ModelStructName}}QDTO 定义查询操作允许接收的字段。
+// {{.ModelStructName}}QDTO contains typed query fields; GORM struct conditions omit zero values.
 type {{.ModelStructName}}QDTO struct {
 {{- range .Fields }}
     {{- if not (call $.IsQExcluded .Name) }}
+    // {{.Name}} carries the corresponding model field value.
     {{.Name}} {{.Type}} `{{.Tags}}`
     {{- end }}
 {{- end }}
 }
 
-// {{.ModelStructName}}DTO 定义允许返回的字段。
+// {{.ModelStructName}}DTO contains configured response fields; exclusions do not enforce runtime authorization.
 type {{.ModelStructName}}DTO struct {
 {{- range .Fields }}
     {{- if not (call $.IsDExcluded .Name) }}
+    // {{.Name}} carries the corresponding model field value.
     {{.Name}} {{.Type}} `{{.Tags}}`
     {{- end }}
 {{- end }}
 }
 
+// ToDTO allocates a response DTO and returns copy errors.
 func (v {{.ModelStructName}}) ToDTO() (*{{.ModelStructName}}DTO, error) {
     var dto {{.ModelStructName}}DTO
     if err := copier.Copy(&dto, v); err != nil {
@@ -42,12 +48,15 @@ func (v {{.ModelStructName}}) ToDTO() (*{{.ModelStructName}}DTO, error) {
     return &dto, nil
 }
 
+// ParseDTO copies into a caller-owned non-nil DTO; errors may leave partial output.
 func (v {{.ModelStructName}}) ParseDTO(dto *{{.ModelStructName}}DTO) error {
     return copier.Copy(dto, v)
 }
 
+// {{.ModelStructName}}Slice provides DTO conversion for a model slice.
 type {{.ModelStructName}}Slice []*{{.ModelStructName}}
 
+// ToDTOs allocates response DTOs and returns copy errors; referenced values follow copier semantics.
 func (v {{.ModelStructName}}Slice) ToDTOs() ([]*{{.ModelStructName}}DTO, error) {
     dtos := make([]*{{.ModelStructName}}DTO, 0, len(v))
     if err := copier.Copy(&dtos, v); err != nil {
@@ -56,10 +65,12 @@ func (v {{.ModelStructName}}Slice) ToDTOs() ([]*{{.ModelStructName}}DTO, error) 
     return dtos, nil
 }
 
+// ParseDTOs copies into a caller-owned slice destination; errors may leave partial output.
 func (v {{.ModelStructName}}Slice) ParseDTOs(dtos *[]*{{.ModelStructName}}DTO) error {
     return copier.Copy(dtos, v)
 }
 
+// ToT allocates a model and returns copy errors; this does not validate business rules.
 func (v {{.ModelStructName}}SDTO) ToT() (*{{.ModelStructName}}, error) {
     var entity {{.ModelStructName}}
     if err := copier.Copy(&entity, v); err != nil {
@@ -68,10 +79,12 @@ func (v {{.ModelStructName}}SDTO) ToT() (*{{.ModelStructName}}, error) {
     return &entity, nil
 }
 
+// ParseT copies into a caller-owned non-nil model; errors may leave partial output.
 func (v {{.ModelStructName}}SDTO) ParseT(entity *{{.ModelStructName}}) error {
     return copier.Copy(entity, v)
 }
 
+// ToT allocates a model and returns copy errors; this does not validate business rules.
 func (v {{.ModelStructName}}MDTO) ToT() (*{{.ModelStructName}}, error) {
     var entity {{.ModelStructName}}
     if err := copier.Copy(&entity, v); err != nil {
@@ -80,10 +93,12 @@ func (v {{.ModelStructName}}MDTO) ToT() (*{{.ModelStructName}}, error) {
     return &entity, nil
 }
 
+// ParseT copies into a caller-owned non-nil model; errors may leave partial output.
 func (v {{.ModelStructName}}MDTO) ParseT(entity *{{.ModelStructName}}) error {
     return copier.Copy(entity, v)
 }
 
+// ToT allocates a model and returns copy errors; this does not validate business rules.
 func (v {{.ModelStructName}}QDTO) ToT() (*{{.ModelStructName}}, error) {
     var entity {{.ModelStructName}}
     if err := copier.Copy(&entity, v); err != nil {
@@ -92,10 +107,12 @@ func (v {{.ModelStructName}}QDTO) ToT() (*{{.ModelStructName}}, error) {
     return &entity, nil
 }
 
+// ParseT copies into a caller-owned non-nil model; errors may leave partial output.
 func (v {{.ModelStructName}}QDTO) ParseT(entity *{{.ModelStructName}}) error {
     return copier.Copy(entity, v)
 }
 
+// ToT allocates a model and returns copy errors; this does not validate business rules.
 func (v {{.ModelStructName}}DTO) ToT() (*{{.ModelStructName}}, error) {
     var entity {{.ModelStructName}}
     if err := copier.Copy(&entity, v); err != nil {
@@ -104,6 +121,7 @@ func (v {{.ModelStructName}}DTO) ToT() (*{{.ModelStructName}}, error) {
     return &entity, nil
 }
 
+// ParseT copies into a caller-owned non-nil model; errors may leave partial output.
 func (v {{.ModelStructName}}DTO) ParseT(entity *{{.ModelStructName}}) error {
     return copier.Copy(entity, v)
 }

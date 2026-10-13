@@ -44,7 +44,7 @@ model and router names:
 
 ```go
 db, err := gorm.Open(mysql.Open(
-    "root:root@(127.0.0.1:13306)/test?charset=utf8mb4&parseTime=True&loc=Local",
+    "YOUR_USERNAME:YOUR_PASSWORD@tcp(DB_HOST:3306)/app?charset=utf8mb4&parseTime=True&loc=Local",
 ))
 if err != nil {
     return err
@@ -88,12 +88,12 @@ if err = generator.Create(); err != nil {
 
 `SetIncludeModelPkgPath` must contain the Go import path of the generated model
 package. Repository, service, and router imports are derived from this path and
-their configured relative paths; they are never guessed by `goimports`.
+their configured relative paths; the target packages and their dependencies must already be available. DTO conversion imports such as `copier` are resolved by import processing; it does not install missing dependencies or type-check the application.
 
 `SetModelBase` must configure a non-empty default time-range field and allowed
 field list. The default must be present in the allowed list. Names are normalized
 to snake case and apply to every model produced by the generator run, so this
-configuration is best suited to shared audit columns.
+configuration is best suited to shared audit columns. Column existence is not checked. These settings are required even when service generation is disabled. Settings and path slices are borrowed; finish configuration before generation and do not run a Generator concurrently.
 
 ## Generated Output
 
@@ -166,7 +166,7 @@ func (r DepartmentRepo) Columns() *model.DepartmentColumns {
 ```
 
 Business services can use `repo.Columns()` together with `repo.Wrapper()`,
-`repo.PageWrapper()`, or `repo.UpdateWrapper()` without constructing a Mapper
+`repo.PageWrapper(number, size)`, or `repo.ModifyWrapper()` without constructing a Mapper
 or importing `starter-gorm`.
 
 A package-level base Repository is initialized once. `NewDepartmentRepo`
@@ -195,11 +195,11 @@ generator.SetServiceBase(&generatorcloud.ServiceBase{
 
 Generated typed conditions use value semantics. Repository query results are
 received directly as `*T`, `[]*T`, or `Pager[T]`. Generated page methods validate and convert
-`webcloud.TimeRange` values to `gormstarter.TimeRange`, then delegate count,
+`webcloud.TimeRange` values to `rds.TimeRange`, then delegate count,
 ordering, limit, offset, and data loading to the Repository pagination methods.
 Generic REST conditions remain Map-based so explicit zero values are preserved.
-Empty base query conditions are supported, while unsafe empty update and delete
-conditions remain rejected by the Repository layer. Generated services use
+Direct service calls accept empty base query conditions; default HTTP `/query` and `/query-one` handlers require nonempty maps. `MaxQuerySize` limits `BaseQuery` and `QueryByCond`, not `QueryByIDs`, counts, or pages. HTTP page binding enforces 1–2000; direct service calls do not inherit that cap. Obvious empty update and delete
+conditions remain rejected by the Repository layer; this does not prove every accepted predicate is selective. Generated services use
 Repository Query constructors instead of issuing raw GORM queries.
 
 ## Authority-Aware Routers
@@ -249,7 +249,7 @@ Keep custom code in separate files in the generated package:
 package repo
 
 func (r EmployeeRepo) CountByDepartmentID(id int64) (int64, error) {
-    return r.CountByMap(map[string]any{"department_id": id})
+    return r.CountByMap(rds.NewMapQuery(map[string]any{"department_id": id}))
 }
 ```
 
@@ -259,8 +259,7 @@ router method with the same signature overrides the embedded `BaseRouter`
 handler while all other handlers retain their default implementations. They
 also contain a registration point for additional custom handlers.
 
-Repository, business service, and router files are skipped when they already
-exist, which preserves manual extensions. Model files are owned by the model
+Repository files are overwritten on regeneration. Existing business service and router files are skipped and do not automatically receive template updates. Model files are owned by the model
 generator and should not contain handwritten business logic.
 
 ## End-to-End Demo
@@ -270,13 +269,12 @@ The integration fixture under `test/simple_demo`:
 1. drops and recreates `demo_department` and `demo_employee`
 2. generates code into the sibling `cloud-simple-demo` module
 3. generates normal and authority-aware routers
-4. compiles the generated application
-5. validates it with the Demo curl script
+
+Compilation and HTTP verification are separate steps in the target application; the generator test itself does not perform them.
 
 Run generation:
 
 ```bash
-GOMODCACHE=/Users/acexy/Repository/cache/golang \
 go test -count=1 -v ./test/simple_demo
 ```
 
@@ -291,7 +289,6 @@ demo_employee
 Run the generated application verification from `cloud-simple-demo`:
 
 ```bash
-GOMODCACHE=/Users/acexy/Repository/cache/golang \
 ./scripts/verify.sh
 ```
 
@@ -310,6 +307,19 @@ The script verifies:
 - Missing model package paths return `ErrModelPackageRequired`.
 - Unsupported HTTP primary-key types return `ErrUnsupportedIDType`.
 - Invalid authority and router configurations fail generation explicitly.
-- Template rendering, import processing, directory creation, and file writes
-  return errors instead of being silently ignored.
+- Local rendering and file-operation errors are returned, but the metadata dependency can panic. Generation is incremental and does not roll back written files.
 - Generated source files use mode `0644`; generated directories use `0755`.
+
+## Generation Boundaries
+
+- Use conventional `model`, `repo`, and `biz` package names: some templates reference these names directly, even when import paths are configurable.
+- `FilePrefix` adds a directory component, not a filename prefix; package names still come from the last `RelativeModelPath` component. Paths and injected Go expressions are trusted configuration, not sandboxed inputs.
+- Plain and authority routers must use distinct output directories. If both resolve to the same path, the plain router is written first and the authority variant is skipped. Separate files in the same package can also collide on generated identifiers.
+- Authority configuration checks only that three strings are nonempty. Ensure the callback type matches the ID, the save DTO retains the ownership field, and the ownership column does not accidentally replace the resource `id`.
+- Metadata accepts string IDs, but generated save error paths currently return numeric `0`, so string-ID services do not compile without manual changes. Missing `ID` fields fall back to `int64` metadata but still produce invalid service references.
+- Disabling service generation does not remove router imports or constructor calls; supply the required service yourself.
+- Generated services and routers are shared singletons. Direct service calls have no automatic HTTP authority, request context propagation, or multi-operation transaction.
+
+## Safe Template Checks
+
+Run `go test -race ./generatorcloud` for isolated model and template checks. These checks validate rendering and Go syntax, not full generated application type compatibility. Tests under `test/` can access databases and overwrite files; the simple demo also recreates tables and writes into another module.
